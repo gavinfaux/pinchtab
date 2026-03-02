@@ -1,5 +1,6 @@
 export { default as NavBar } from './NavBar'
 export { default as ProfileCard } from './ProfileCard'
+export { default as ProfileDetailsModal } from './ProfileDetailsModal'
 export { default as InstanceCard } from './InstanceCard'
 export { default as AgentItem } from './AgentItem'
 export { default as ActivityLine } from './ActivityLine'

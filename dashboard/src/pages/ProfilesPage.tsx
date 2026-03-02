@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { Toolbar, EmptyState, Button, Modal, Input } from '../components/atoms'
-import { ProfileCard } from '../components/molecules'
+import { ProfileCard, ProfileDetailsModal } from '../components/molecules'
 import * as api from '../services/api'
+import type { Profile } from '../generated/types'
 
 export default function ProfilesPage() {
   const {
@@ -15,6 +16,7 @@ export default function ProfilesPage() {
   } = useAppStore()
   const [showCreate, setShowCreate] = useState(false)
   const [showLaunch, setShowLaunch] = useState<string | null>(null)
+  const [showDetails, setShowDetails] = useState<Profile | null>(null)
 
   // Create form
   const [createName, setCreateName] = useState('')
@@ -83,11 +85,21 @@ export default function ProfilesPage() {
     if (!inst) return
     try {
       await api.stopInstance(inst.id)
-      // Refresh instances
       const updated = await api.fetchInstances()
       setInstances(updated)
     } catch (e) {
       console.error('Failed to stop instance', e)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!showDetails?.id) return
+    try {
+      await api.deleteProfile(showDetails.id)
+      setShowDetails(null)
+      loadProfiles()
+    } catch (e) {
+      console.error('Failed to delete profile', e)
     }
   }
 
@@ -152,6 +164,7 @@ export default function ProfilesPage() {
                 instance={instanceByProfile.get(p.name)}
                 onLaunch={() => setShowLaunch(p.name)}
                 onStop={() => handleStop(p.name)}
+                onDetails={() => setShowDetails(p)}
               />
             ))}
           </div>
@@ -255,6 +268,14 @@ export default function ProfilesPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Profile Details Modal */}
+      <ProfileDetailsModal
+        profile={showDetails}
+        instance={showDetails ? instanceByProfile.get(showDetails.name) : undefined}
+        onClose={() => setShowDetails(null)}
+        onDelete={handleDelete}
+      />
     </div>
   )
 }
