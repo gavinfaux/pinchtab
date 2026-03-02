@@ -24,6 +24,9 @@ func SnapshotMetrics() map[string]any {
 	if total > 0 {
 		avgMs = float64(latencySum) / float64(total)
 	}
+	rateMu.Lock()
+	bucketHosts := len(rateBuckets)
+	rateMu.Unlock()
 
 	// Go runtime metrics
 	var memStats runtime.MemStats
@@ -35,7 +38,7 @@ func SnapshotMetrics() map[string]any {
 		"avgLatencyMs":    avgMs,
 		"rateLimited":     atomic.LoadUint64(&metricRateLimited),
 		"staleRefRetries": atomic.LoadUint64(&metricStaleRefRetries),
-		"rateBucketHosts": RateBucketHostCount(),
+		"rateBucketHosts": bucketHosts,
 		"goHeapAllocMB":   float64(memStats.HeapAlloc) / (1024 * 1024),
 		"goHeapSysMB":     float64(memStats.HeapSys) / (1024 * 1024),
 		"goNumGoroutine":  runtime.NumGoroutine(),
