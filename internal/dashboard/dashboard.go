@@ -306,9 +306,9 @@ func (d *Dashboard) RegisterHandlers(mux *http.ServeMux) {
 	sub, _ := fs.Sub(dashboardFS, "dashboard")
 	fileServer := http.FileServer(http.FS(sub))
 
-	// Serve static assets under /dashboard/
-	mux.Handle("GET /dashboard/assets/", http.StripPrefix("/dashboard", d.withNoCache(fileServer)))
-	mux.Handle("GET /dashboard/pinchtab-headed-192.png", http.StripPrefix("/dashboard", d.withNoCache(fileServer)))
+	// Serve static assets under /dashboard/ with long cache (hashed filenames)
+	mux.Handle("GET /dashboard/assets/", http.StripPrefix("/dashboard", d.withLongCache(fileServer)))
+	mux.Handle("GET /dashboard/pinchtab-headed-192.png", http.StripPrefix("/dashboard", d.withLongCache(fileServer)))
 
 	// SPA: serve dashboard.html for /dashboard
 	mux.Handle("GET /dashboard", d.withNoCache(http.HandlerFunc(d.handleDashboardUI)))
@@ -385,6 +385,14 @@ func (d *Dashboard) withNoCache(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (d *Dashboard) withLongCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Assets have hashes in filenames - cache for 1 year
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		next.ServeHTTP(w, r)
 	})
 }
