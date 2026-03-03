@@ -9,6 +9,7 @@ import (
 	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/dashboard"
 	"github.com/pinchtab/pinchtab/internal/idutil"
+	"github.com/pinchtab/pinchtab/internal/semantic"
 )
 
 type Handlers struct {
@@ -18,9 +19,11 @@ type Handlers struct {
 	Dashboard    *dashboard.Dashboard
 	Orchestrator bridge.OrchestratorService
 	IdMgr        *idutil.Manager
+	Matcher      semantic.ElementMatcher
 }
 
 func New(b bridge.BridgeAPI, cfg *config.RuntimeConfig, p bridge.ProfileService, d *dashboard.Dashboard, o bridge.OrchestratorService) *Handlers {
+	matcher := semantic.NewCombinedMatcher(semantic.NewHashingEmbedder(128))
 	return &Handlers{
 		Bridge:       b,
 		Config:       cfg,
@@ -28,6 +31,7 @@ func New(b bridge.BridgeAPI, cfg *config.RuntimeConfig, p bridge.ProfileService,
 		Dashboard:    d,
 		Orchestrator: o,
 		IdMgr:        idutil.NewManager(),
+		Matcher:      matcher,
 	}
 }
 
@@ -79,6 +83,7 @@ func (h *Handlers) RegisterRoutes(mux *http.ServeMux, doShutdown func()) {
 	mux.HandleFunc("POST /tabs/{id}/upload", h.HandleTabUpload)
 	mux.HandleFunc("GET /download", h.HandleDownload)
 	mux.HandleFunc("POST /upload", h.HandleUpload)
+	mux.HandleFunc("POST /find", h.HandleFind)
 	mux.HandleFunc("GET /screencast", h.HandleScreencast)
 	mux.HandleFunc("GET /screencast/tabs", h.HandleScreencastAll)
 	mux.HandleFunc("GET /welcome", func(w http.ResponseWriter, r *http.Request) {

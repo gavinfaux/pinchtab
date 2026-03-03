@@ -49,6 +49,7 @@ func (o *Orchestrator) RegisterHandlers(mux *http.ServeMux) {
 		"GET /tabs/{id}/cookies",
 		"POST /tabs/{id}/cookies",
 		"GET /tabs/{id}/metrics",
+		"POST /tabs/{id}/find",
 	}
 	for _, route := range tabProxyRoutes {
 		mux.HandleFunc(route, o.proxyTabRequest)
