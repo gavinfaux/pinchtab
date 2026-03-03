@@ -285,13 +285,13 @@ func studyHardCases() []studyCase {
 		}
 	}
 
-	product  := pageElems["Product Page"]
+	product := pageElems["Product Page"]
 	checkout := pageElems["Checkout Page"]
-	login    := pageElems["Login Form"]
+	login := pageElems["Login Form"]
 	register := pageElems["Registration Form"]
 	settings := pageElems["Settings Page"]
-	table    := pageElems["Admin Data Table"]
-	modal    := pageElems["Confirmation Modal"]
+	table := pageElems["Admin Data Table"]
+	modal := pageElems["Confirmation Modal"]
 
 	return []studyCase{
 		// ── Group A: Abbreviations (lexical = 0, embedding has n-gram overlap) ──
@@ -439,9 +439,9 @@ func TestBenchmarkStudy(t *testing.T) {
 		name    string
 		matcher ElementMatcher
 	}{
-		{"Lexical",   NewLexicalMatcher()},
+		{"Lexical", NewLexicalMatcher()},
 		{"Embedding", NewEmbeddingMatcher(NewHashingEmbedder(128))},
-		{"Combined",  NewCombinedMatcher(NewHashingEmbedder(128))},
+		{"Combined", NewCombinedMatcher(NewHashingEmbedder(128))},
 	}
 
 	// Run all matchers
@@ -769,8 +769,8 @@ func TestBenchmarkStudy(t *testing.T) {
 		desc  string
 	}{
 		{"A (abbreviations)", []int{0, 1, 2, 3, 4}, "expected: Emb ≥ Lex"},
-		{"B (synonyms)",      []int{5, 6, 7, 8},    "expected: both struggle"},
-		{"C (ambiguous)",     []int{9},              "expected: Combined wins"},
+		{"B (synonyms)", []int{5, 6, 7, 8}, "expected: both struggle"},
+		{"C (ambiguous)", []int{9}, "expected: Combined wins"},
 	}
 
 	for _, gd := range groupDefs {
