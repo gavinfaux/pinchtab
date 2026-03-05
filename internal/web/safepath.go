@@ -47,5 +47,12 @@ func SafePath(base, userPath string) (string, error) {
 		return "", fmt.Errorf("path %q escapes base directory %q", userPath, absBase)
 	}
 
+	// Double-check via filepath.Rel — this also serves as an explicit sanitizer
+	// recognized by static analysis tools (e.g. CodeQL go/path-injection).
+	rel, err := filepath.Rel(absBase, resolved)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("path %q escapes base directory %q", userPath, absBase)
+	}
+
 	return resolved, nil
 }
