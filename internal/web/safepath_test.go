@@ -18,11 +18,11 @@ func TestSafePath(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid relative", "/tmp/state", "pdfs/out.pdf", false},
-		{"valid absolute inside", "/tmp/state", "/tmp/state/pdfs/out.pdf", false},
+		{"absolute inside rejected", "/tmp/state", "/tmp/state/pdfs/out.pdf", true},
 		{"traversal dotdot", "/tmp/state", "../etc/passwd", true},
 		{"traversal absolute", "/tmp/state", "/etc/passwd", true},
 		{"traversal hidden", "/tmp/state", "pdfs/../../etc/passwd", true},
-		{"base itself", "/tmp/state", "/tmp/state", false},
+		{"absolute base rejected", "/tmp/state", "/tmp/state", true},
 	}
 
 	for _, tt := range tests {
@@ -55,23 +55,17 @@ func TestSafePath_TempDir(t *testing.T) {
 		}
 	})
 
-	t.Run("absolute inside base", func(t *testing.T) {
-		got, err := SafePath(base, child)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != child {
-			t.Errorf("got %q, want %q", got, child)
+	t.Run("absolute inside base rejected", func(t *testing.T) {
+		_, err := SafePath(base, child)
+		if err == nil {
+			t.Error("expected error for absolute path, got nil")
 		}
 	})
 
-	t.Run("base itself allowed", func(t *testing.T) {
-		got, err := SafePath(base, base)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != base {
-			t.Errorf("got %q, want %q", got, base)
+	t.Run("absolute base itself rejected", func(t *testing.T) {
+		_, err := SafePath(base, base)
+		if err == nil {
+			t.Error("expected error for absolute path, got nil")
 		}
 	})
 
@@ -236,7 +230,7 @@ func TestSafePath_RelativeNormalizesInside(t *testing.T) {
 func TestSafePath_ReturnValueIsAbsolute(t *testing.T) {
 	base := t.TempDir()
 
-	paths := []string{".", "", "sub/file.txt", base}
+	paths := []string{".", "", "sub/file.txt"}
 	for _, p := range paths {
 		t.Run("path="+p, func(t *testing.T) {
 			got, err := SafePath(base, p)
