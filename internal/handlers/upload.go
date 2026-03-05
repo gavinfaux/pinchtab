@@ -74,21 +74,21 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadBase := filepath.Join(h.Config.StateDir, uploadSandboxDirName)
-	var totalBytes int64
-	for i, p := range req.Paths {
-		safe, size, err := validateUploadSandboxPath(uploadBase, p, maxFileBytes)
-		if err != nil {
-			httpx.Error(w, 400, fmt.Errorf("invalid path: %w", err))
-			return
+		uploadBase := filepath.Join(h.Config.StateDir, uploadSandboxDirName)
+		var totalBytes int64
+		for i, p := range req.Paths {
+			safe, size, err := validateUploadSandboxPath(uploadBase, p, maxFileBytes)
+			if err != nil {
+				httpx.Error(w, 400, fmt.Errorf("invalid path: %w", err))
+				return
+			}
+			totalBytes += size
+			if totalBytes > int64(maxTotalBytes) {
+				httpx.Error(w, 400, fmt.Errorf("upload payload too large: max %d bytes total", maxTotalBytes))
+				return
+			}
+			req.Paths[i] = safe
 		}
-		totalBytes += size
-		if totalBytes > int64(maxTotalBytes) {
-			httpx.Error(w, 400, fmt.Errorf("upload payload too large: max %d bytes total", maxTotalBytes))
-			return
-		}
-		req.Paths[i] = safe
-	}
 
 	// Decode base64 files to temp dir.
 	var tempFiles []string
