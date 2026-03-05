@@ -7,7 +7,14 @@ services:
     volumes:
       - pinchtab-data:/data
     environment:
-      PINCHTAB_TOKEN: ${PINCHTAB_TOKEN:-}
+      - PINCHTAB_BIND=0.0.0.0
+      - PINCHTAB_PORT=9867
+      - PINCHTAB_HEADLESS=true
+      - PINCHTAB_STEALTH=light
+      - PINCHTAB_TOKEN=${PINCHTAB_TOKEN:-}
+      - PINCHTAB_STATE_DIR=/data
+      - PINCHTAB_PROFILE_DIR=/data/chrome-profile
+    command: ["pinchtab", "dashboard"]
     restart: unless-stopped
     # Shared memory is critical for Chrome stability
     shm_size: "2gb"
