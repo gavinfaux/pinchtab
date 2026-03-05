@@ -17,14 +17,14 @@ NC=$'\033[0m'
 # ── Commands ─────────────────────────────────────────────────────────
 # name:emoji:description
 COMMANDS=(
-  "check:🧪:Run all checks (Go + Dashboard)"
-  "  check go:🧪:Go only (format, vet, build, test, lint)"
-  "  check dashboard:🧪:Dashboard only (prettier, typecheck, vitest)"
+  "check:🧪:Go + Dashboard checks"
+  "  check go:🧪:Go only"
+  "  check dashboard:🧪:Dashboard only"
   "dev:🚀:Build & run with dashboard"
-  "doctor:🩺:Verify & setup dev environment"
-  "dashboard:📦:Build React dashboard"
-  "security:🔒:Run gosec security scan"
-  "docs:📖:Check docs JSON structure"
+  "doctor:🩺:Setup dev environment"
+  "dashboard:📦:Build dashboard"
+  "security:🔒:Gosec security scan"
+  "docs:📖:Validate docs JSON"
   "hooks:🪝:Install git hooks"
 )
 
@@ -36,12 +36,11 @@ show_help() {
   echo ""
   for cmd in "${COMMANDS[@]}"; do
     IFS=':' read -r name emoji desc <<< "$cmd"
-    # Subcommands have leading spaces in name
     if [[ "$name" == " "* ]]; then
       local trimmed="${name#"${name%%[![:space:]]*}"}"
-      printf "       ${BOLD}%-20s${NC} ${MUTED}%s${NC}\n" "$trimmed" "$desc"
+      printf "      ${BOLD}%-18s${NC} ${MUTED}%s${NC}\n" "$trimmed" "$desc"
     else
-      printf "  ${SUCCESS}%s${NC}  ${BOLD}%-20s${NC} ${MUTED}%s${NC}\n" "$emoji" "$name" "$desc"
+      printf "  ${SUCCESS}%s${NC} ${BOLD}%-18s${NC} ${MUTED}%s${NC}\n" "$emoji" "$name" "$desc"
     fi
   done
   echo ""
@@ -123,9 +122,9 @@ pick_with_select() {
     IFS=':' read -r name emoji desc <<< "$cmd"
     local trimmed="${name#"${name%%[![:space:]]*}"}"
     if [[ "$name" == " "* ]]; then
-      printf "  ${MUTED}[%d]${NC}        ${BOLD}%-20s${NC} %s\n" "$i" "$trimmed" "$desc"
+      printf "  ${MUTED}[%d]${NC}     ${BOLD}%-18s${NC} %s\n" "$i" "$trimmed" "$desc"
     else
-      printf "  ${MUTED}[%d]${NC} ${SUCCESS}%s${NC}  ${BOLD}%-20s${NC} %s\n" "$i" "$emoji" "$trimmed" "$desc"
+      printf "  ${MUTED}[%d]${NC} ${SUCCESS}%s${NC} ${BOLD}%-18s${NC} %s\n" "$i" "$emoji" "$trimmed" "$desc"
     fi
     names+=("$trimmed")
     i=$((i + 1))
