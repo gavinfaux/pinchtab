@@ -37,7 +37,7 @@ Complete reference for all PinchTab environment variables and configuration opti
 
 | Variable | Default | Description |
 |---|---|---|
-| `BRIDGE_TOKEN` | Disabled | API authentication token (if set, all requests must include `Authorization: Bearer {token}`) |
+| `PINCHTAB_TOKEN` | Disabled | API authentication token (if set, all requests must include `Authorization: Bearer {token}`) |
 | `PINCHTAB_ALLOW_EVALUATE` | `false` | Enable `POST /evaluate` and `POST /tabs/{id}/evaluate` endpoints (disabled by default) |
 
 ### Debugging & Logging
@@ -78,7 +78,7 @@ BRIDGE_PORT=9868 ./pinchtab
 BRIDGE_BIND=0.0.0.0 BRIDGE_PORT=9867 ./pinchtab
 ```
 
-**⚠️ Security Warning:** Only use `0.0.0.0` on trusted networks. Consider using `BRIDGE_TOKEN` for authentication.
+**⚠️ Security Warning:** Only use `0.0.0.0` on trusted networks. Consider using `PINCHTAB_TOKEN` for authentication.
 
 ### Headed Mode with Profile
 
@@ -110,7 +110,7 @@ Speeds up page loading by blocking ad domains.
 ### API Authentication
 
 ```bash
-BRIDGE_TOKEN=my-secret-token ./pinchtab
+PINCHTAB_TOKEN=my-secret-token ./pinchtab
 ```
 
 Then all API requests must include:
@@ -136,7 +136,7 @@ BRIDGE_HEADLESS=false \
 BRIDGE_STEALTH=full \
 BRIDGE_BLOCK_ADS=true \
 BRIDGE_PROFILE=dev \
-BRIDGE_TOKEN=secret \
+PINCHTAB_TOKEN=secret \
 ./pinchtab
 ```
 
@@ -248,7 +248,7 @@ BRIDGE_BIND=0.0.0.0 ./pinchtab
 Accessible from any machine on the network. **Requires authentication:**
 
 ```bash
-BRIDGE_BIND=0.0.0.0 BRIDGE_TOKEN=secret ./pinchtab
+BRIDGE_BIND=0.0.0.0 PINCHTAB_TOKEN=secret ./pinchtab
 ```
 
 ### Specific Interface
@@ -293,7 +293,7 @@ Maximum stealth (`full`) adds significant overhead.
 
 ```bash
 # Check token format
-BRIDGE_TOKEN=my-token ./pinchtab
+PINCHTAB_TOKEN=my-token ./pinchtab
 
 # Request must include the token
 curl -H "Authorization: Bearer my-token" http://localhost:9867/health
@@ -303,9 +303,9 @@ curl -H "Authorization: Bearer my-token" http://localhost:9867/health
 
 ## Security Best Practices
 
-1. **Use `BRIDGE_TOKEN` when exposing to network:**
+1. **Use `PINCHTAB_TOKEN` when exposing to network:**
    ```bash
-   BRIDGE_BIND=0.0.0.0 BRIDGE_TOKEN=$(openssl rand -hex 32) ./pinchtab
+   BRIDGE_BIND=0.0.0.0 PINCHTAB_TOKEN=$(openssl rand -hex 32) ./pinchtab
    ```
 
 2. **Use localhost by default:**
