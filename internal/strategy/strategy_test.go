@@ -6,6 +6,7 @@ import (
 	"github.com/pinchtab/pinchtab/internal/strategy"
 
 	// Register strategies via init()
+	_ "github.com/pinchtab/pinchtab/internal/strategy/autorestart"
 	_ "github.com/pinchtab/pinchtab/internal/strategy/explicit"
 	_ "github.com/pinchtab/pinchtab/internal/strategy/simple"
 )
@@ -30,6 +31,16 @@ func TestRegistry_SimpleRegistered(t *testing.T) {
 	}
 }
 
+func TestRegistry_SimpleAutorestartRegistered(t *testing.T) {
+	s, err := strategy.New("simple-autorestart")
+	if err != nil {
+		t.Fatalf("simple-autorestart strategy not registered: %v", err)
+	}
+	if s.Name() != "simple-autorestart" {
+		t.Errorf("expected name 'simple-autorestart', got %q", s.Name())
+	}
+}
+
 func TestRegistry_UnknownStrategy(t *testing.T) {
 	_, err := strategy.New("nonexistent")
 	if err == nil {
@@ -48,5 +59,8 @@ func TestRegistry_Names(t *testing.T) {
 	}
 	if !found["simple"] {
 		t.Error("simple not in names")
+	}
+	if !found["simple-autorestart"] {
+		t.Error("simple-autorestart not in names")
 	}
 }

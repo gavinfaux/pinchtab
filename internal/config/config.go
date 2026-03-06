@@ -42,7 +42,7 @@ type RuntimeConfig struct {
 	WaitNavDelay      time.Duration
 
 	// Orchestrator settings (dashboard mode only).
-	Strategy         string // "simple" (default) or "explicit"
+	Strategy         string // "simple" (default), "explicit", or "simple-autorestart"
 	AllocationPolicy string // "fcfs" (default), "round_robin", "random"
 }
 

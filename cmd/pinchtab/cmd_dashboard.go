@@ -18,7 +18,13 @@ import (
 	"github.com/pinchtab/pinchtab/internal/handlers"
 	"github.com/pinchtab/pinchtab/internal/orchestrator"
 	"github.com/pinchtab/pinchtab/internal/profiles"
+	"github.com/pinchtab/pinchtab/internal/strategy"
 	"github.com/pinchtab/pinchtab/internal/web"
+
+	// Register strategies via init().
+	_ "github.com/pinchtab/pinchtab/internal/strategy/autorestart"
+	_ "github.com/pinchtab/pinchtab/internal/strategy/explicit"
+	_ "github.com/pinchtab/pinchtab/internal/strategy/simple"
 )
 
 // runDashboard starts a lightweight dashboard server — no Chrome, no bridge.
@@ -55,8 +61,35 @@ func runDashboard(cfg *config.RuntimeConfig) {
 	mux := http.NewServeMux()
 
 	dash.RegisterHandlers(mux)
-	orch.RegisterHandlers(mux)
 	profMgr.RegisterHandlers(mux)
+
+	// Strategy-based routing: if a known strategy is configured, let it handle
+	// instance management and shorthand route registration. Otherwise fall back
+	// to the default manual route setup for backward compatibility.
+	var activeStrategy strategy.Strategy
+	if cfg.Strategy != "" {
+		strat, err := strategy.New(cfg.Strategy)
+		if err != nil {
+			slog.Warn("unknown strategy, falling back to default", "strategy", cfg.Strategy, "err", err)
+		} else {
+			// Inject orchestrator dependency.
+			type orchSetter interface {
+				SetOrchestrator(o *orchestrator.Orchestrator)
+			}
+			if setter, ok := strat.(orchSetter); ok {
+				setter.SetOrchestrator(orch)
+			}
+			strat.RegisterRoutes(mux)
+			activeStrategy = strat
+			slog.Info("strategy activated", "strategy", strat.Name())
+		}
+	}
+
+	// If no strategy handled route registration, register default routes.
+	if activeStrategy == nil {
+		orch.RegisterHandlers(mux)
+		registerDefaultProxyRoutes(mux, orch)
+	}
 
 	// Root returns health check (API-first design)
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
@@ -76,41 +109,6 @@ func runDashboard(cfg *config.RuntimeConfig) {
 		web.JSON(w, 200, map[string]any{"metrics": handlers.SnapshotMetrics()})
 	})
 
-	// Special handler for /tabs - return empty list if no instances
-	mux.HandleFunc("GET /tabs", func(w http.ResponseWriter, r *http.Request) {
-		target := orch.FirstRunningURL()
-		if target == "" {
-			// No instances running, return empty tabs list
-			web.JSON(w, 200, map[string]interface{}{"tabs": []interface{}{}})
-			return
-		}
-		proxyRequest(w, r, target+"/tabs")
-	})
-
-	proxyEndpoints := []string{
-		"GET /snapshot", "GET /screenshot", "GET /text",
-		"POST /navigate", "POST /action", "POST /actions", "POST /evaluate",
-		"POST /tab", "POST /tab/lock", "POST /tab/unlock",
-		"GET /cookies", "POST /cookies",
-		"GET /download", "POST /upload",
-		"GET /stealth/status", "POST /fingerprint/rotate",
-		"GET /screencast", "GET /screencast/tabs",
-		"POST /find", "POST /macro",
-	}
-	for _, ep := range proxyEndpoints {
-		endpoint := ep
-		mux.HandleFunc(endpoint, func(w http.ResponseWriter, r *http.Request) {
-			target := orch.FirstRunningURL()
-			if target == "" {
-				web.Error(w, 503, fmt.Errorf("no running instances — launch one from the Profiles tab"))
-				return
-			}
-			// Extract path from endpoint (remove method prefix)
-			path := r.URL.Path
-			proxyRequest(w, r, target+path)
-		})
-	}
-
 	handler := handlers.LoggingMiddleware(handlers.CorsMiddleware(handlers.AuthMiddleware(cfg, mux)))
 
 	srv := &http.Server{
@@ -122,10 +120,22 @@ func runDashboard(cfg *config.RuntimeConfig) {
 		IdleTimeout:       120 * time.Second,
 	}
 
+	// Start strategy lifecycle if active. For strategies like simple-autorestart,
+	// Start() launches the initial instance and begins crash monitoring.
+	// When a strategy handles auto-launch, skip the manual auto-launch below.
+	strategyHandlesLaunch := false
+	if activeStrategy != nil {
+		if err := activeStrategy.Start(context.Background()); err != nil {
+			slog.Error("strategy start failed", "strategy", activeStrategy.Name(), "err", err)
+		} else {
+			strategyHandlesLaunch = true
+		}
+	}
+
 	autoLaunch := strings.EqualFold(os.Getenv("PINCHTAB_AUTO_LAUNCH"), "1") ||
 		strings.EqualFold(os.Getenv("PINCHTAB_AUTO_LAUNCH"), "true") ||
 		strings.EqualFold(os.Getenv("PINCHTAB_AUTO_LAUNCH"), "yes")
-	if autoLaunch {
+	if autoLaunch && !strategyHandlesLaunch {
 		defaultProfile := os.Getenv("PINCHTAB_DEFAULT_PROFILE")
 		defaultProfileExplicit := defaultProfile != ""
 		defaultPort := os.Getenv("PINCHTAB_DEFAULT_PORT")
@@ -158,14 +168,19 @@ func runDashboard(cfg *config.RuntimeConfig) {
 			}
 			slog.Info("auto-launched instance", "profile", profileToLaunch, "id", inst.ID, "port", inst.Port, "headless", headlessDefault)
 		}()
-	} else {
-		slog.Info("dashboard auto-launch disabled", "hint", "set PINCHTAB_AUTO_LAUNCH=1 to enable")
+	} else if !strategyHandlesLaunch {
+		slog.Info("dashboard auto-launch disabled", "hint", "set PINCHTAB_AUTO_LAUNCH=1 or PINCHTAB_STRATEGY=simple-autorestart to enable")
 	}
 
 	shutdownOnce := &sync.Once{}
 	doShutdown := func() {
 		shutdownOnce.Do(func() {
 			slog.Info("shutting down dashboard...")
+			if activeStrategy != nil {
+				if err := activeStrategy.Stop(); err != nil {
+					slog.Warn("strategy stop failed", "err", err)
+				}
+			}
 			dash.Shutdown()
 			orch.Shutdown()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -299,5 +314,42 @@ func periodicHealthCheck(orch *orchestrator.Orchestrator) {
 			"headless", headlessCount,
 			"total_tabs", len(allTabs),
 		)
+	}
+}
+
+// registerDefaultProxyRoutes adds the default shorthand proxy routes
+// when no strategy is handling route registration.
+func registerDefaultProxyRoutes(mux *http.ServeMux, orch *orchestrator.Orchestrator) {
+	// Special handler for /tabs — return empty list if no instances.
+	mux.HandleFunc("GET /tabs", func(w http.ResponseWriter, r *http.Request) {
+		target := orch.FirstRunningURL()
+		if target == "" {
+			web.JSON(w, 200, map[string]any{"tabs": []any{}})
+			return
+		}
+		proxyRequest(w, r, target+"/tabs")
+	})
+
+	proxyEndpoints := []string{
+		"GET /snapshot", "GET /screenshot", "GET /text",
+		"POST /navigate", "POST /action", "POST /actions", "POST /evaluate",
+		"POST /tab", "POST /tab/lock", "POST /tab/unlock",
+		"GET /cookies", "POST /cookies",
+		"GET /download", "POST /upload",
+		"GET /stealth/status", "POST /fingerprint/rotate",
+		"GET /screencast", "GET /screencast/tabs",
+		"POST /find", "POST /macro",
+	}
+	for _, ep := range proxyEndpoints {
+		endpoint := ep
+		mux.HandleFunc(endpoint, func(w http.ResponseWriter, r *http.Request) {
+			target := orch.FirstRunningURL()
+			if target == "" {
+				web.Error(w, 503, fmt.Errorf("no running instances — launch one from the Profiles tab"))
+				return
+			}
+			path := r.URL.Path
+			proxyRequest(w, r, target+path)
+		})
 	}
 }

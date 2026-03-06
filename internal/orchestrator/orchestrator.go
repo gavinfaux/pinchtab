@@ -49,24 +49,33 @@ type Orchestrator struct {
 	childAuthToken string
 	portAllocator  *PortAllocator
 	idMgr          *idutil.Manager
-	onEvent        EventHandler
+	eventHandlers  []EventHandler
 	instanceMgr    *instance.Manager
 }
 
-// OnEvent sets the event handler for instance lifecycle events.
+// OnEvent adds an event handler for instance lifecycle events.
+// Multiple handlers can be registered; all will be called in order.
 func (o *Orchestrator) OnEvent(handler EventHandler) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.onEvent = handler
+	o.eventHandlers = append(o.eventHandlers, handler)
 }
 
 func (o *Orchestrator) emitEvent(eventType string, inst *bridge.Instance) {
 	o.mu.RLock()
-	handler := o.onEvent
+	handlers := make([]EventHandler, len(o.eventHandlers))
+	copy(handlers, o.eventHandlers)
 	o.mu.RUnlock()
-	if handler != nil {
-		handler(InstanceEvent{Type: eventType, Instance: inst})
+	evt := InstanceEvent{Type: eventType, Instance: inst}
+	for _, handler := range handlers {
+		handler(evt)
 	}
+}
+
+// EmitEvent allows external components (e.g. strategies) to broadcast
+// lifecycle events through the orchestrator's event system.
+func (o *Orchestrator) EmitEvent(eventType string, inst *bridge.Instance) {
+	o.emitEvent(eventType, inst)
 }
 
 type InstanceInternal struct {
@@ -315,6 +324,7 @@ func (o *Orchestrator) Stop(id string) error {
 	}
 	if inst.Status == "stopped" && !instanceIsActive(inst) {
 		o.mu.Unlock()
+		o.markStopped(id)
 		return nil
 	}
 	inst.Status = "stopping"
