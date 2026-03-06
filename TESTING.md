@@ -54,6 +54,8 @@ The `testutil` package provides reusable helpers:
 
 ### Writing New Tests
 
+New tests should use `testutil.Client` and `testutil.NewTestServer` (or `StartServer`) instead of the legacy `httpGet`/`httpPost` wrappers. The legacy helpers are kept only for backward compatibility.
+
 ```go
 //go:build integration
 
@@ -69,6 +71,18 @@ func TestMyFeature(t *testing.T) {
     
     value := testutil.JSONField(t, body, "someField")
     // ...
+}
+```
+
+For tests that need their own isolated server (outside the shared `TestMain` setup):
+
+```go
+func TestIsolatedFeature(t *testing.T) {
+    srv := testutil.NewTestServer(t, testutil.DefaultConfig())
+    c := testutil.NewClient(srv.URL)
+    
+    code, _ := c.Get(t, "/health")
+    // ... srv.Stop() is called automatically via t.Cleanup
 }
 ```
 

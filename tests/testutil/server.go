@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 )
 
@@ -51,6 +52,19 @@ type Server struct {
 	StateDir   string
 	ProfileDir string
 	cmd        *exec.Cmd
+}
+
+// NewTestServer builds, launches, and registers cleanup with t.Cleanup.
+// This is the preferred way to create a test server — cleanup runs automatically
+// even if the test panics. For use in TestMain (no *testing.T), use StartServer instead.
+func NewTestServer(t *testing.T, cfg ServerConfig) *Server {
+	t.Helper()
+	srv, err := StartServer(cfg)
+	if err != nil {
+		t.Fatalf("start test server: %v", err)
+	}
+	t.Cleanup(srv.Stop)
+	return srv
 }
 
 // StartServer builds, launches, and waits for a pinchtab server.
