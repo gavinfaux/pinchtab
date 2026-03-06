@@ -154,12 +154,11 @@ func (te *TabExecutor) RemoveTab(tabID string) {
 	delete(te.tabLocks, tabID)
 	te.mu.Unlock()
 
-	// Wait for any in-flight task to finish.
-	// This empty critical section is intentional — it blocks until the mutex
-	// is available, ensuring the active task completes before RemoveTab returns.
-	//nolint:staticcheck // SA2001: intentional wait for mutex availability
+	// Wait for any in-flight task holding this mutex to finish.
+	// We acquire the lock to block until the active task releases it,
+	// then immediately release — the mutex is orphaned after this.
 	m.Lock()
-	m.Unlock()
+	defer m.Unlock() //nolint:staticcheck // SA2001: intentional barrier—blocks until in-flight task completes
 }
 
 // ActiveTabs returns the number of tabs that have associated mutexes.
