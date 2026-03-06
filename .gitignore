@@ -7,14 +7,7 @@ browser-bridge
 /pinchtab
 coverage.out
 
-# Test output files
-bench_output.txt
-race_output.txt
-test_output.txt
-pinchtab-test.log
-pinchtab-test-error.log
-
-# Build artifacts
+# Build artifacts and test output
 dist/
 *.js
 !scripts/**/*.js
