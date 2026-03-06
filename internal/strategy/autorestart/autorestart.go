@@ -23,12 +23,12 @@ import (
 )
 
 const (
-	defaultMaxRestarts   = 3
-	defaultInitBackoff   = 2 * time.Second
-	defaultStableAfter   = 5 * time.Minute
-	defaultProfileName   = "default"
-	healthPollInterval   = 500 * time.Millisecond
-	healthPollTimeout    = 30 * time.Second
+	defaultMaxRestarts = 3
+	defaultInitBackoff = 2 * time.Second
+	defaultStableAfter = 5 * time.Minute
+	defaultProfileName = "default"
+	healthPollInterval = 500 * time.Millisecond
+	healthPollTimeout  = 30 * time.Second
 )
 
 func init() {
