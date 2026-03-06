@@ -53,7 +53,7 @@ func TestAction_Click_TriggersNavigation(t *testing.T) {
 		t.Fatalf("failed to parse snapshot: %v", err)
 	}
 
-	// Find any link (example.com has "More information..." link)
+	// Find any link (pinchtab.com has "More information..." link)
 	var linkRef string
 	for _, n := range snapResp.Nodes {
 		if n.Role == "link" {
@@ -78,13 +78,13 @@ func TestAction_Click_TriggersNavigation(t *testing.T) {
 	}
 
 	// Verify navigation happened by checking the page content changed
-	// The "More information" link on example.com goes to iana.org
+	// The "More information" link on pinchtab.com goes to iana.org
 	_, textBody := httpGet(t, "/text?tabId="+currentTabID)
 	text := string(textBody)
 
-	// After clicking, we should NOT be on example.com anymore
+	// After clicking, we should NOT be on pinchtab.com anymore
 	if strings.Contains(text, "Example Domain") && !strings.Contains(text, "IANA") {
-		t.Errorf("click did not trigger navigation - still on example.com (bug #80: click at wrong position)")
+		t.Errorf("click did not trigger navigation - still on pinchtab.com (bug #80: click at wrong position)")
 	}
 	t.Logf("navigation verified: page content changed after click")
 }

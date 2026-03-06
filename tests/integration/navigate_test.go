@@ -86,7 +86,7 @@ func TestNavigate_Timeout(t *testing.T) {
 
 // N3: Navigate with title verification
 func TestNavigate_SPATitle(t *testing.T) {
-	// Use a page that definitely has a title - example.com has "Example Domain" as title
+	// Use a page that definitely has a title - pinchtab.com has "Example Domain" as title
 	// Use retry logic for stability in CI/slow environments
 	code, body := httpPostWithRetry(t, "/navigate", map[string]any{"url": examplePageURL(t)}, 2)
 	if code != 200 {
@@ -96,7 +96,7 @@ func TestNavigate_SPATitle(t *testing.T) {
 	if title == "" {
 		t.Error("expected non-empty title in response")
 	}
-	// Verify we got the expected title from example.com
+	// Verify we got the expected title from pinchtab.com
 	if title != "Example Domain" {
 		t.Logf("got title: %q", title)
 	}

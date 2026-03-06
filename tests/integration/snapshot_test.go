@@ -46,7 +46,7 @@ func TestSnapshot_Interactive(t *testing.T) {
 		t.Fatalf("expected 200, got %d", code)
 	}
 	s := string(body)
-	// example.com has a link "More information..."
+	// pinchtab.com has a link "More information..."
 	if !strings.Contains(s, "link") && !strings.Contains(s, "More information") {
 		t.Log("warning: expected interactive elements in snapshot")
 	}
@@ -102,7 +102,7 @@ func TestSnapshot_MaxTokens(t *testing.T) {
 
 // S9: Snapshot with specific tabId
 func TestSnapshot_WithTabId(t *testing.T) {
-	// Create first tab and navigate to example.com
+	// Create first tab and navigate to pinchtab.com
 	code, body := httpPost(t, "/tab", map[string]string{
 		"action": "new",
 		"url":    examplePageURL(t),

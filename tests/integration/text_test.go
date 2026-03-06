@@ -37,7 +37,7 @@ func TestText_Raw(t *testing.T) {
 
 // T3: Text with specific tabId
 func TestText_WithTabId(t *testing.T) {
-	// Create first tab and navigate to example.com
+	// Create first tab and navigate to pinchtab.com
 	code, body := httpPost(t, "/tab", map[string]string{
 		"action": "new",
 		"url":    examplePageURL(t),
