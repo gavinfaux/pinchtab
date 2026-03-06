@@ -140,7 +140,7 @@ func (s *Server) Cleanup() {
 		fmt.Fprintf(os.Stderr, "testutil: keeping test dir (PINCHTAB_TEST_KEEP_DIR set): %s\n", s.Dir)
 		return
 	}
-	os.RemoveAll(s.Dir)
+	_ = os.RemoveAll(s.Dir)
 }
 
 // TerminateProcessGroup sends SIGTERM to the process group, then SIGKILL on timeout.
