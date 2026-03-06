@@ -78,7 +78,7 @@ func StartServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	// Build binary
-	build := exec.Command("go", "build", "-o", s.BinaryPath, "./cmd/pinchtab/")
+	build := exec.Command("go", "build", "-o", s.BinaryPath, "./cmd/pinchtab/") // #nosec G204 -- BinaryPath is from os.MkdirTemp, not user input
 	build.Dir = FindRepoRoot()
 	build.Stdout = os.Stdout
 	build.Stderr = os.Stderr
@@ -102,7 +102,7 @@ func StartServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	// Start in its own process group for clean shutdown
-	s.cmd = exec.Command(s.BinaryPath)
+	s.cmd = exec.Command(s.BinaryPath) // #nosec G204 -- BinaryPath is from os.MkdirTemp, not user input
 	s.cmd.Env = env
 	s.cmd.Stdout = os.Stdout
 	s.cmd.Stderr = os.Stderr
