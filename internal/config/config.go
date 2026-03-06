@@ -437,22 +437,36 @@ func Load() *RuntimeConfig {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("failed to read config file", "path", configPath, "error", err)
+		}
 		return cfg
 	}
+
+	slog.Debug("loading config file", "path", configPath)
 
 	var fc *FileConfig
 
 	if isLegacyConfig(data) {
 		var lc legacyFileConfig
 		if err := json.Unmarshal(data, &lc); err != nil {
+			slog.Warn("failed to parse legacy config", "path", configPath, "error", err)
 			return cfg
 		}
 		fc = convertLegacyConfig(&lc)
-		slog.Debug("loaded legacy flat config, consider migrating to nested format")
+		slog.Info("loaded legacy flat config, consider migrating to nested format", "path", configPath)
 	} else {
 		fc = &FileConfig{}
 		if err := json.Unmarshal(data, fc); err != nil {
+			slog.Warn("failed to parse config", "path", configPath, "error", err)
 			return cfg
+		}
+	}
+
+	// Validate file config and log warnings
+	if errs := ValidateFileConfig(fc); len(errs) > 0 {
+		for _, e := range errs {
+			slog.Warn("config validation error", "path", configPath, "error", e)
 		}
 	}
 
