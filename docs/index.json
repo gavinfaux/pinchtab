@@ -1,46 +1,32 @@
 {
   "main": [
-    "overview.md",
+    "pinchtab.md",
+    "showcase.md",
+    "get-started.md",
     "core-concepts.md",
     "headless-vs-headed.md",
-    "dashboard.md",
-    "get-started.md"
+    "dashboard.md"
   ],
-  "references": [
-    "references/api-structure.md",
-    "references/endpoints.md",
-    "references/profile-api.md",
-    "references/instance-api.md",
-    "references/tabs-api.md",
-    "references/cli-quick-reference.md",
-    "references/configuration.md"
+  "guides": [
+    "guides/contributing.md",
+    "guides/attach-chrome.md",
+    "guides/multi-instance.md",
+    "guides/identifying-instances.md",
+    "guides/memory-monitoring.md",
+    "guides/data-storage.md",
+    "guides/docker.md",
+    "guides/raspberry-pi.md"
   ],
   "architecture": [
-    "architecture/pinchtab-architecture.md",
+    "architecture/overview.md",
     "architecture/overall-system-chart.md",
     "architecture/instance-model-charts.md",
     "architecture/managed-bridge-vs-managed-direct-cdp.md",
     "architecture/chrome-lifecycle-and-orchestration.md",
-    "architecture/dashboard-ui.md",
-    "architecture/building.md"
+    "architecture/find.md",
+    "architecture/scheduler.md"
   ],
-  "guides": [
-    "guides/expert-bridge-mode.md",
-    "guides/expert-attach.md",
-    "guides/expert-strategies.md",
-    "guides/headed-mode-guide.md",
-    "guides/identifying-instances.md",
-    "guides/agent-optimization.md",
-    "guides/memory-monitoring.md",
-    "guides/data-storage.md",
-    "guides/raspberry-pi.md"
-  ],
-  "examples": [
-    "examples/bridge-smoke-test.md"
-  ],
-  "proposals": [
-    "proposals/default-instance.md",
-    "proposals/performance-optimization.md",
-    "proposals/ui-enhancements.md"
+  "reference": [
+    "*"
   ]
 }
