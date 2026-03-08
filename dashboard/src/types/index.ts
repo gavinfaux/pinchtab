@@ -4,6 +4,8 @@ import type {
   BrowserSettings,
   CreateProfileRequest,
   Instance,
+  InstanceMetrics,
+  InstanceTab,
   LaunchInstanceRequest,
   Profile,
   ScreencastSettings,
@@ -13,6 +15,8 @@ import type {
 export type {
   Profile,
   Instance,
+  InstanceTab,
+  InstanceMetrics,
   Agent,
   ActivityEvent,
   Settings,
@@ -32,6 +36,20 @@ export interface DashboardServerInfo {
   agents: number;
   restartRequired?: boolean;
   restartReasons?: string[];
+}
+
+export interface MonitoringServerMetrics {
+  goHeapAllocMB: number;
+  goNumGoroutine: number;
+  rateBucketHosts: number;
+}
+
+export interface MonitoringSnapshot {
+  timestamp: number;
+  instances: Instance[];
+  tabs: InstanceTab[];
+  metrics: InstanceMetrics[];
+  serverMetrics: MonitoringServerMetrics;
 }
 
 export interface BackendServerConfig {
@@ -235,6 +253,22 @@ export function normalizeDashboardServerInfo(
     ...input,
     restartRequired: input.restartRequired ?? false,
     restartReasons: input.restartReasons ?? [],
+  };
+}
+
+export function normalizeMonitoringSnapshot(
+  input: Partial<MonitoringSnapshot>,
+): MonitoringSnapshot {
+  return {
+    timestamp: input.timestamp ?? Date.now(),
+    instances: input.instances ?? [],
+    tabs: input.tabs ?? [],
+    metrics: input.metrics ?? [],
+    serverMetrics: {
+      goHeapAllocMB: input.serverMetrics?.goHeapAllocMB ?? 0,
+      goNumGoroutine: input.serverMetrics?.goNumGoroutine ?? 0,
+      rateBucketHosts: input.serverMetrics?.rateBucketHosts ?? 0,
+    },
   };
 }
 

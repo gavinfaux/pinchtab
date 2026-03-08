@@ -12,10 +12,13 @@ import type {
   BackendConfig,
   BackendConfigState,
   DashboardServerInfo,
+  MonitoringServerMetrics,
+  MonitoringSnapshot,
 } from "../types";
 import {
   normalizeBackendConfigState,
   normalizeDashboardServerInfo,
+  normalizeMonitoringSnapshot,
 } from "../types";
 
 const BASE = ""; // Uses proxy in dev
@@ -106,14 +109,8 @@ export async function fetchAllMetrics(): Promise<InstanceMetrics[]> {
   return request<InstanceMetrics[]>("/instances/metrics");
 }
 
-export interface ServerMetrics {
-  goHeapAllocMB: number;
-  goNumGoroutine: number;
-  rateBucketHosts: number;
-}
-
-export async function fetchServerMetrics(): Promise<ServerMetrics> {
-  const res = await request<{ metrics: ServerMetrics }>("/metrics");
+export async function fetchServerMetrics(): Promise<MonitoringServerMetrics> {
+  const res = await request<{ metrics: MonitoringServerMetrics }>("/metrics");
   return res.metrics;
 }
 
@@ -159,10 +156,15 @@ export type EventHandler = {
   onSystem?: (event: SystemEvent) => void;
   onAgent?: (event: AgentEvent) => void;
   onInit?: (agents: Agent[]) => void;
+  onMonitoring?: (snapshot: MonitoringSnapshot) => void;
 };
 
-export function subscribeToEvents(handlers: EventHandler): () => void {
-  const es = new EventSource("/api/events");
+export function subscribeToEvents(
+  handlers: EventHandler,
+  options?: { includeMemory?: boolean },
+): () => void {
+  const url = options?.includeMemory ? "/api/events?memory=1" : "/api/events";
+  const es = new EventSource(url);
 
   es.addEventListener("init", (e) => {
     try {
@@ -186,6 +188,17 @@ export function subscribeToEvents(handlers: EventHandler): () => void {
     try {
       const event = JSON.parse(e.data) as AgentEvent;
       handlers.onAgent?.(event);
+    } catch {
+      // ignore
+    }
+  });
+
+  es.addEventListener("monitoring", (e) => {
+    try {
+      const snapshot = normalizeMonitoringSnapshot(
+        JSON.parse(e.data) as Partial<MonitoringSnapshot>,
+      );
+      handlers.onMonitoring?.(snapshot);
     } catch {
       // ignore
     }

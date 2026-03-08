@@ -12,8 +12,16 @@ import { MonitoringPage, ProfilesPage, SettingsPage } from "./pages";
 import * as api from "./services/api";
 
 function AppContent() {
-  const { setInstances, setProfiles, setAgents, setServerInfo } = useAppStore();
+  const {
+    setInstances,
+    setProfiles,
+    setAgents,
+    setServerInfo,
+    applyMonitoringSnapshot,
+    settings,
+  } = useAppStore();
   const location = useLocation();
+  const memoryMetricsEnabled = settings.monitoring?.memoryMetrics ?? false;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-site-mode", "agent");
@@ -45,30 +53,34 @@ function AppContent() {
 
   // Subscribe to SSE events
   useEffect(() => {
-    const unsubscribe = api.subscribeToEvents({
-      onInit: (agents) => {
-        setAgents(agents);
+    const unsubscribe = api.subscribeToEvents(
+      {
+        onInit: (agents) => {
+          setAgents(agents);
+        },
+        onSystem: (event) => {
+          console.log("System event:", event);
+        },
+        onAgent: (event) => {
+          console.log("Agent event:", event);
+        },
+        onMonitoring: (snapshot) => {
+          applyMonitoringSnapshot(snapshot, memoryMetricsEnabled);
+        },
       },
-      onSystem: async (event) => {
-        console.log("System event:", event);
-        if (event.type.startsWith("instance.")) {
-          try {
-            const instances = await api.fetchInstances();
-            setInstances(instances);
-            const profiles = await api.fetchProfiles();
-            setProfiles(profiles);
-          } catch (e) {
-            console.error("Failed to refresh after event", e);
-          }
-        }
+      {
+        includeMemory: memoryMetricsEnabled,
       },
-      onAgent: (event) => {
-        console.log("Agent event:", event);
-      },
-    });
+    );
 
     return unsubscribe;
-  }, [setInstances, setProfiles, setAgents]);
+  }, [
+    applyMonitoringSnapshot,
+    memoryMetricsEnabled,
+    setAgents,
+    setInstances,
+    setProfiles,
+  ]);
 
   return (
     <div className="dashboard-shell flex h-screen flex-col bg-bg-app">

@@ -61,6 +61,8 @@ type Dashboard struct {
 	sysConns       map[chan SystemEvent]struct{}
 	cancel         context.CancelFunc
 	instances      InstanceLister
+	monitoring     MonitoringSource
+	serverMetrics  ServerMetricsProvider
 	childAuthToken string
 	mu             sync.RWMutex
 }
@@ -174,13 +176,23 @@ func (d *Dashboard) handleSSE(w http.ResponseWriter, r *http.Request) {
 		d.mu.Unlock()
 	}()
 
+	includeMemory := r.URL.Query().Get("memory") == "1"
+
 	// Send initial empty agent list
 	data, _ := json.Marshal([]interface{}{})
 	_, _ = fmt.Fprintf(w, "event: init\ndata: %s\n\n", data)
 	flusher.Flush()
 
+	if d.monitoring != nil || d.instances != nil {
+		data, _ = json.Marshal(d.monitoringSnapshot(includeMemory))
+		_, _ = fmt.Fprintf(w, "event: monitoring\ndata: %s\n\n", data)
+		flusher.Flush()
+	}
+
 	keepalive := time.NewTicker(30 * time.Second)
+	monitoring := time.NewTicker(5 * time.Second)
 	defer keepalive.Stop()
+	defer monitoring.Stop()
 
 	for {
 		select {
@@ -192,6 +204,17 @@ func (d *Dashboard) handleSSE(w http.ResponseWriter, r *http.Request) {
 			data, _ := json.Marshal(evt)
 			_, _ = fmt.Fprintf(w, "event: system\ndata: %s\n\n", data)
 			flusher.Flush()
+			if d.monitoring != nil || d.instances != nil {
+				data, _ = json.Marshal(d.monitoringSnapshot(includeMemory))
+				_, _ = fmt.Fprintf(w, "event: monitoring\ndata: %s\n\n", data)
+				flusher.Flush()
+			}
+		case <-monitoring.C:
+			if d.monitoring != nil || d.instances != nil {
+				data, _ = json.Marshal(d.monitoringSnapshot(includeMemory))
+				_, _ = fmt.Fprintf(w, "event: monitoring\ndata: %s\n\n", data)
+				flusher.Flush()
+			}
 		case <-keepalive.C:
 			_, _ = fmt.Fprintf(w, ": keepalive\n\n")
 			flusher.Flush()
