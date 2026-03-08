@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/pinchtab/pinchtab/internal/handlers"
 	"github.com/pinchtab/pinchtab/internal/web"
 )
 
@@ -159,7 +160,6 @@ func (o *Orchestrator) findRunningInstanceByTabID(tabID string) (*InstanceIntern
 
 func (o *Orchestrator) handleProxyScreencast(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	tabID := r.URL.Query().Get("tabId")
 
 	o.mu.RLock()
 	inst, ok := o.instances[id]
@@ -169,8 +169,16 @@ func (o *Orchestrator) handleProxyScreencast(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	targetURL := fmt.Sprintf("ws://localhost:%s/screencast?tabId=%s", inst.Port, tabID)
-	web.JSON(w, 200, map[string]string{"wsUrl": targetURL})
+	// Build target URL preserving all query params (tabId, quality, maxWidth, fps)
+	targetURL := fmt.Sprintf("http://localhost:%s/screencast?%s", inst.Port, r.URL.RawQuery)
+
+	// Inject child auth token if configured
+	if o.childAuthToken != "" {
+		r.Header.Set("Authorization", "Bearer "+o.childAuthToken)
+	}
+
+	// Use WebSocket proxy for proper upgrade
+	handlers.ProxyWebSocket(w, r, targetURL)
 }
 
 func readResponseBody(resp *http.Response) []byte {
