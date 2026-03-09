@@ -15,6 +15,14 @@ assert_ok "screenshot"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
+start_test "pinchtab pdf (default)"
+
+pt_get /pdf
+assert_ok "pdf"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
 start_test "pinchtab screenshot --tab <id>"
 
 pt_get /tabs
