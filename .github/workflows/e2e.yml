@@ -51,6 +51,11 @@ jobs:
           path: tests/e2e/results/
           retention-days: 7
 
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml logs pinchtab
+
       - name: Post PR comment
         if: always()
         uses: actions/github-script@v7
@@ -117,8 +122,3 @@ jobs:
             }
             
             console.log(`Posted comment to PR #${prNumber}`);
-
-      - name: Show logs on failure
-        if: failure()
-        run: |
-          docker compose -f tests/e2e/docker-compose.yml logs pinchtab
