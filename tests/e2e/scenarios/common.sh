@@ -24,20 +24,38 @@ TESTS_FAILED=0
 ASSERTIONS_PASSED=0
 ASSERTIONS_FAILED=0
 
-# Test timing
+# Test timing (using seconds, Alpine doesn't support ms)
 TEST_START_TIME=0
+TEST_START_NS=0
 TEST_RESULTS=()
+
+# Get time in milliseconds (cross-platform)
+get_time_ms() {
+  if [ -f /proc/uptime ]; then
+    # Linux: use /proc/uptime (gives centiseconds)
+    awk '{printf "%.0f", $1 * 1000}' /proc/uptime
+  elif command -v gdate &>/dev/null; then
+    # macOS with coreutils
+    gdate +%s%3N
+  elif command -v perl &>/dev/null; then
+    # Perl fallback
+    perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000'
+  else
+    # Last resort: seconds * 1000
+    echo $(($(date +%s) * 1000))
+  fi
+}
 
 # Start a test
 start_test() {
   CURRENT_TEST="$1"
-  TEST_START_TIME=$(date +%s%3N)
+  TEST_START_TIME=$(get_time_ms)
   echo -e "${BLUE}▶ ${CURRENT_TEST}${NC}"
 }
 
 # End a test
 end_test() {
-  local end_time=$(date +%s%3N)
+  local end_time=$(get_time_ms)
   local duration=$((end_time - TEST_START_TIME))
   
   if [ "$ASSERTIONS_FAILED" -eq 0 ]; then
