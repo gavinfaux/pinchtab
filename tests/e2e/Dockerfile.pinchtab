@@ -1,0 +1,35 @@
+# Build stage
+FROM golang:1.23-bookworm AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -o pinchtab ./cmd/pinchtab
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install Chrome dependencies and Chrome
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary
+COPY --from=builder /app/pinchtab /usr/local/bin/pinchtab
+
+# Create non-root user
+RUN useradd -m -s /bin/bash pinchtab
+USER pinchtab
+WORKDIR /home/pinchtab
+
+EXPOSE 9999
+
+CMD ["pinchtab", "server"]
