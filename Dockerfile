@@ -1,10 +1,20 @@
-# Build stage
+# Dashboard build stage
+FROM oven/bun:latest AS dashboard
+WORKDIR /build
+COPY dashboard/package.json dashboard/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY dashboard/ .
+RUN bun run build
+
+# Go build stage
 FROM golang:1.26-alpine AS builder
 RUN apk add --no-cache git
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=dashboard /build/dist/ internal/dashboard/dashboard/
+RUN mv internal/dashboard/dashboard/index.html internal/dashboard/dashboard/dashboard.html
 RUN go build -ldflags="-s -w" -o pinchtab ./cmd/pinchtab
 
 # Runtime stage
