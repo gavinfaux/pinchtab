@@ -187,14 +187,37 @@ assert_json_length_gte() {
   fi
 }
 
-# HTTP helpers
-pt_get() {
-  curl -s "${PINCHTAB_URL}$1"
+# ================================================================
+# Visible curl wrapper — shows exact command when running
+# ================================================================
+
+RESULT=""
+HTTP_STATUS=""
+
+pinchtab() {
+  local method="$1"
+  local path="$2"
+  shift 2
+
+  # Print the curl command in cyan so you see what's executed
+  echo -e "${BLUE}→ curl -X $method ${PINCHTAB_URL}$path $@${NC}" >&2
+
+  # Execute and capture response + status
+  local response
+  response=$(curl -s -w "\n%{http_code}" \
+    -X "$method" \
+    "${PINCHTAB_URL}$path" \
+    -H "Content-Type: application/json" \
+    "$@")
+
+  RESULT=$(echo "$response" | head -n -1)
+  HTTP_STATUS=$(echo "$response" | tail -n 1)
 }
 
-pt_post() {
-  curl -s -X POST -H "Content-Type: application/json" -d "$2" "${PINCHTAB_URL}$1"
-}
+# Aliases for cleaner test files
+pt() { pinchtab "$@"; }
+pt_get() { pinchtab GET "$1"; echo "$RESULT"; }
+pt_post() { pinchtab POST "$1" -d "$2"; echo "$RESULT"; }
 
 # Print summary
 print_summary() {

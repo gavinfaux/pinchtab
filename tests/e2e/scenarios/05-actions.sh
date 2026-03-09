@@ -1,58 +1,53 @@
 #!/bin/bash
-# 05-actions.sh - Browser actions (click, type, etc.)
+# 05-actions.sh — Browser actions (click, type, press)
 
 source "$(dirname "$0")/common.sh"
 
-start_test "Click action"
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab click <ref>"
 
-# Navigate to buttons page
-pt_post "/navigate" "{\"url\":\"${FIXTURES_URL}/buttons.html\"}" >/dev/null
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 sleep 2
 
 # Get snapshot and find increment button
-SNAP=$(pt_get "/snapshot")
-INCREMENT_REF=$(echo "$SNAP" | jq -r '.nodes[] | select(.name == "Increment") | .ref' | head -1)
+pt_get /snapshot
+INCREMENT_REF=$(echo "$RESULT" | jq -r '.nodes[] | select(.name == "Increment") | .ref' | head -1)
 
 if [ -n "$INCREMENT_REF" ] && [ "$INCREMENT_REF" != "null" ]; then
-  # Click the button
-  CLICK_RESULT=$(pt_post "/action" "{\"kind\":\"click\",\"ref\":\"${INCREMENT_REF}\"}")
-  echo -e "  ${GREEN}✓${NC} Clicked increment button (ref: $INCREMENT_REF)"
+  pt_post /action -d "{\"kind\":\"click\",\"ref\":\"${INCREMENT_REF}\"}"
+  echo -e "  ${GREEN}✓${NC} Clicked button (ref: $INCREMENT_REF)"
   ((ASSERTIONS_PASSED++)) || true
 else
-  echo -e "  ${YELLOW}⚠${NC} Could not find increment button (non-critical)"
+  echo -e "  ${YELLOW}⚠${NC} Could not find increment button"
   ((ASSERTIONS_PASSED++)) || true
 fi
 
 end_test
 
-start_test "Type action"
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab type <ref> <text>"
 
-# Navigate to form page
-pt_post "/navigate" "{\"url\":\"${FIXTURES_URL}/form.html\"}" >/dev/null
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/form.html\"}"
 sleep 1
 
-# Get snapshot to find input field
-SNAP=$(pt_get "/snapshot")
+pt_get /snapshot
+USERNAME_REF=$(echo "$RESULT" | jq -r '.nodes[] | select(.role == "textbox") | .ref' | head -1)
 
-# Find username input
-USERNAME_REF=$(echo "$SNAP" | jq -r '.nodes[] | select(.role == "textbox" and (.name | contains("Username") or .name == "")) | .ref' | head -1)
-
-if [ -n "$USERNAME_REF" ]; then
-  # Type into the field
-  TYPE_RESULT=$(pt_post "/action" "{\"kind\":\"type\",\"ref\":\"${USERNAME_REF}\",\"text\":\"testuser123\"}")
-  echo -e "  ${GREEN}✓${NC} Typed into username field (ref: $USERNAME_REF)"
-  ((ASSERTIONS_PASSED++))
+if [ -n "$USERNAME_REF" ] && [ "$USERNAME_REF" != "null" ]; then
+  pt_post /action -d "{\"kind\":\"type\",\"ref\":\"${USERNAME_REF}\",\"text\":\"testuser123\"}"
+  echo -e "  ${GREEN}✓${NC} Typed into field (ref: $USERNAME_REF)"
+  ((ASSERTIONS_PASSED++)) || true
 else
-  echo -e "  ${YELLOW}⚠${NC} Could not find username input field"
-  ((ASSERTIONS_PASSED++))  # Non-critical
+  echo -e "  ${YELLOW}⚠${NC} Could not find input field"
+  ((ASSERTIONS_PASSED++)) || true
 fi
 
 end_test
 
-start_test "Press key action"
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab press <key>"
 
-# Press Enter key
-RESULT=$(pt_post "/action" "{\"kind\":\"press\",\"key\":\"Enter\"}")
+pt_post /action -d '{"kind":"press","key":"Escape"}'
 assert_status 200 "${PINCHTAB_URL}/action" "POST" '{"kind":"press","key":"Escape"}'
 
 end_test
