@@ -78,12 +78,11 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab evaluate --tab <id>"
 
-# Open a new tab with evaluate page to get a known tab ID
+# Open evaluate page in new tab - capture tabId from response
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/evaluate.html\",\"newTab\":true}"
+assert_ok "navigate for evaluate"
+TAB_ID=$(echo "$LAST_BODY" | jq -r '.tabId')
 sleep 1
-
-pt_get /tabs
-TAB_ID=$(get_last_tab)
 
 pt_post "/tabs/${TAB_ID}/evaluate" -d '{"expression":"1 + 2 + 3"}'
 assert_ok "tab evaluate"

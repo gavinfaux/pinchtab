@@ -52,12 +52,11 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab find --tab <id>"
 
-# Open find page in new tab to get known tab ID
+# Open find page in new tab - capture tabId from response
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/find.html\",\"newTab\":true}"
+assert_ok "navigate for find"
+TAB_ID=$(echo "$LAST_BODY" | jq -r '.tabId')
 sleep 1
-
-pt_get /tabs
-TAB_ID=$(get_last_tab)
 
 pt_post "/tabs/${TAB_ID}/find" -d '{"query":"sign up link"}'
 assert_ok "tab find"
