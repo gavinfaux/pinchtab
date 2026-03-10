@@ -33,23 +33,22 @@ RUN apk add --no-cache \
     ttf-freefont \
     dumb-init
 
-# Create non-root user and state directory
-RUN adduser -D -g '' pinchtab && \
+# Create non-root user and persistent config/state directory
+RUN adduser -D -h /data -g '' pinchtab && \
     mkdir -p /data && \
     chown pinchtab:pinchtab /data
 
 # Copy binary from builder
 COPY --from=builder /build/pinchtab /usr/local/bin/pinchtab
+COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Switch to non-root user
 USER pinchtab
 WORKDIR /data
 
 # Environment variables
-ENV PINCHTAB_BIND=0.0.0.0 \
-    PINCHTAB_PORT=9867 \
-    CHROME_BINARY=/usr/bin/chromium-browser \
-    CHROME_FLAGS="--no-sandbox --disable-gpu"
+ENV HOME=/data \
+    XDG_CONFIG_HOME=/data/.config
 
 # Expose port
 EXPOSE 9867
@@ -58,4 +57,4 @@ EXPOSE 9867
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Run pinchtab
-CMD ["pinchtab"]
+CMD ["/usr/local/bin/docker-entrypoint.sh", "pinchtab"]

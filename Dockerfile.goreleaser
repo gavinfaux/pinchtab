@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.21
 
 LABEL org.opencontainers.image.source="https://github.com/pinchtab/pinchtab"
 LABEL org.opencontainers.image.description="Browser control for AI agents"
@@ -17,19 +17,15 @@ RUN adduser -D -g '' pinchtab && \
     chown pinchtab:pinchtab /data
 
 COPY pinchtab /usr/local/bin/pinchtab
+COPY --chmod=0755 docker-entrypoint-release.sh /usr/local/bin/docker-entrypoint-release.sh
 
 USER pinchtab
 WORKDIR /data
 
-ENV PINCHTAB_BIND=0.0.0.0 \
-    PINCHTAB_PORT=9867 \
-    PINCHTAB_HEADLESS=true \
-    PINCHTAB_STATE_DIR=/data \
-    PINCHTAB_PROFILE_DIR=/data/chrome-profile \
-    CHROME_BINARY=/usr/bin/chromium-browser \
-    CHROME_FLAGS="--no-sandbox --disable-gpu"
+ENV HOME=/data \
+    XDG_CONFIG_HOME=/data/.config
 
 EXPOSE 9867
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["pinchtab"]
+CMD ["/usr/local/bin/docker-entrypoint-release.sh", "pinchtab"]

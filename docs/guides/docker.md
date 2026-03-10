@@ -1,6 +1,8 @@
 # Docker Deployment
 
-PinchTab can run in Docker with a mounted data volume for config, profiles, and state. The safest way to configure the current implementation is to mount a `config.json` file and point `PINCHTAB_CONFIG` at it.
+PinchTab can run in Docker with a mounted data volume for config, profiles, and state.
+The bundled image now manages its default config under `/data/.config/pinchtab/config.json`.
+If you want full control over the config file path, you can still mount your own file and point `PINCHTAB_CONFIG` at it.
 
 ## Quick Start
 
@@ -10,7 +12,31 @@ Build the image from this repository:
 docker build -t pinchtab .
 ```
 
-Create a local data directory with config:
+Run the container with a persistent data volume:
+
+```bash
+docker run -d \
+  --name pinchtab \
+  -p 127.0.0.1:9867:9867 \
+  -v pinchtab-data:/data \
+  --shm-size=2g \
+  pinchtab
+```
+
+On first boot, the image creates `/data/.config/pinchtab/config.json` and generates a token if needed. When you use the managed-config path, the container binds to `0.0.0.0` at runtime via `PINCHTAB_BIND`, but the persisted config remains on the normal loopback default unless you override it yourself.
+
+If you inspect the startup security summary from inside Docker, the loopback bind check will still report the effective runtime bind as non-loopback. That is expected: the process is listening on `0.0.0.0` inside the container so Docker port publishing can forward traffic to it.
+
+This does not automatically mean the service is exposed beyond your machine. Host exposure still depends on how you publish the container port. For example:
+
+- `-p 127.0.0.1:9867:9867` keeps the service reachable only from the host machine
+- `-p 9867:9867` exposes it on the host's network interfaces
+
+Treat the Docker runtime bind and the host-published address as separate layers. If you expose PinchTab beyond localhost, keep an auth token set and put it behind TLS or a trusted reverse proxy.
+
+## Supplying Your Own `config.json`
+
+If you want to manage the config file yourself, mount it and point `PINCHTAB_CONFIG` at it:
 
 ```text
 docker-data/
@@ -37,16 +63,16 @@ Example `docker-data/config.json`:
 }
 ```
 
-Run the container:
+Run with an explicit config file:
 
 ```bash
 docker run -d \
   --name pinchtab \
-  -p 9867:9867 \
+  -p 127.0.0.1:9867:9867 \
+  -e PINCHTAB_CONFIG=/config/config.json \
   -v "$PWD/docker-data:/data" \
-  -e PINCHTAB_CONFIG=/data/config.json \
+  -v "$PWD/docker-data/config.json:/config/config.json:ro" \
   --shm-size=2g \
-  --security-opt seccomp=unconfined \
   pinchtab
 ```
 
@@ -61,7 +87,7 @@ curl http://localhost:9867/instances
 
 If you want data to survive container restarts, persist:
 
-- the config file
+- the managed config directory or your mounted config file
 - the profile directory
 - the state directory
 
@@ -79,15 +105,17 @@ For current runtime overrides, rely on:
 
 Everything else should go in `config.json`.
 
-In the bundled image, you usually do not need to set `CHROME_BIN` manually unless you are replacing the browser binary.
+In the bundled image, you usually do not need to set `PINCHTAB_BIND`, `PINCHTAB_PORT`, or `CHROME_BIN` manually unless you are overriding the generated config or replacing the browser binary. The managed-config entrypoint supplies `PINCHTAB_BIND=0.0.0.0` at runtime so Docker port publishing works without broadening the persisted config.
 
 ## Compose
 
-The repository includes a `docker-compose.yml`, but the stable configuration pattern is still:
+The repository includes a `docker-compose.yml` that follows the managed-config pattern:
 
-1. mount a persistent data directory
-2. point `PINCHTAB_CONFIG` at `/data/config.json`
-3. keep behavior settings in that file
+1. mount a persistent `/data` volume
+2. let the entrypoint create and maintain `/data/.config/pinchtab/config.json`
+3. optionally pass `PINCHTAB_TOKEN`
+
+If you prefer a fully user-managed config file, mount it separately and set `PINCHTAB_CONFIG`.
 
 If you expose PinchTab beyond localhost, set an auth token and put it behind TLS or a trusted reverse proxy.
 
@@ -96,7 +124,6 @@ If you expose PinchTab beyond localhost, set an auth token and put it behind TLS
 Chrome in containers usually needs:
 
 - larger shared memory, such as `--shm-size=2g`
-- a relaxed seccomp profile such as `seccomp=unconfined`
 - enough RAM for your tab count and workload
 
 For heavier scraping or testing workloads, also consider:

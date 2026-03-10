@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand"
 	"net"
@@ -193,6 +194,10 @@ func setupAllocator(cfg *config.RuntimeConfig) (context.Context, context.CancelF
 // times out we fall back to launching Chrome directly via os/exec and connecting
 // with a RemoteAllocator (requires debugPort > 0).
 func startChrome(parentCtx context.Context, cfg *config.RuntimeConfig, opts []chromedp.ExecAllocatorOption, debugPort int) (context.Context, context.CancelFunc, error) {
+	return startChromeWithRecovery(parentCtx, cfg, opts, debugPort, false)
+}
+
+func startChromeWithRecovery(parentCtx context.Context, cfg *config.RuntimeConfig, opts []chromedp.ExecAllocatorOption, debugPort int, retriedProfileLock bool) (context.Context, context.CancelFunc, error) {
 	slog.Debug("creating chrome allocator")
 
 	// Create allocator context (inner, wraps parentCtx)
@@ -248,6 +253,17 @@ func startChrome(parentCtx context.Context, cfg *config.RuntimeConfig, opts []ch
 		allocCancel()
 
 		errMsg := err.Error()
+
+		if !retriedProfileLock && isChromeProfileLockError(errMsg) {
+			recovered, recoverErr := clearStaleChromeProfileLock(cfg.ProfileDir, errMsg)
+			if recoverErr != nil {
+				slog.Warn("failed to recover chrome profile lock", "profile", cfg.ProfileDir, "err", recoverErr)
+			} else if recovered {
+				slog.Warn("cleared stale chrome profile lock; retrying chrome startup", "profile", cfg.ProfileDir)
+				time.Sleep(250 * time.Millisecond)
+				return startChromeWithRecovery(parentCtx, cfg, opts, debugPort, true)
+			}
+		}
 
 		// Chrome binary not found — report clearly and stop.
 		if strings.Contains(errMsg, "executable file not found") ||
@@ -337,6 +353,8 @@ func startChromeWithRemoteAllocator(parentCtx context.Context, cfg *config.Runti
 
 	// #nosec G204 -- chromeBinary from CHROME_BIN env var, user config, or findChromeBinary() known system paths
 	cmd := exec.Command(chromeBinary, args...)
+	cmd.Stdout = newPrefixedLogWriter(os.Stdout, "chrome stdout")
+	cmd.Stderr = newPrefixedLogWriter(os.Stderr, "chrome stderr")
 	if err := cmd.Start(); err != nil {
 		return nil, nil, fmt.Errorf("failed to start chrome directly: %w", err)
 	}
@@ -511,4 +529,52 @@ func randomWindowSize() (int, int) {
 	}
 	s := sizes[rand.Intn(len(sizes))]
 	return s[0], s[1]
+}
+
+type prefixedLogWriter struct {
+	dst    io.Writer
+	prefix string
+	buf    []byte
+}
+
+func newPrefixedLogWriter(dst io.Writer, prefix string) *prefixedLogWriter {
+	return &prefixedLogWriter{
+		dst:    dst,
+		prefix: prefix,
+		buf:    make([]byte, 0, 1024),
+	}
+}
+
+func (w *prefixedLogWriter) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	for {
+		idx := bytesIndexByte(w.buf, '\n')
+		if idx < 0 {
+			break
+		}
+		line := w.buf[:idx]
+		w.buf = w.buf[idx+1:]
+		if err := w.writeLine(line); err != nil {
+			return 0, err
+		}
+	}
+	return len(p), nil
+}
+
+func (w *prefixedLogWriter) writeLine(line []byte) error {
+	text := string(line)
+	if text == "" {
+		return nil
+	}
+	_, err := fmt.Fprintf(w.dst, "%s: %s\n", w.prefix, text)
+	return err
+}
+
+func bytesIndexByte(b []byte, c byte) int {
+	for i, v := range b {
+		if v == c {
+			return i
+		}
+	}
+	return -1
 }
