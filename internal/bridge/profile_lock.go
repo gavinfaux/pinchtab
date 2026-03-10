@@ -1,3 +1,15 @@
+// profile_lock.go handles stale Chrome profile lock recovery.
+//
+// When a container restarts (or Chrome crashes), Chrome's SingletonLock,
+// SingletonSocket, and SingletonCookie files may be left behind in the profile
+// directory. On next startup Chrome sees these and refuses to launch with
+// "The profile appears to be in use by another Chromium process".
+//
+// This code detects that error, checks whether the owning process is actually
+// still running (via PID probe and process listing), and removes the stale
+// lock files if it's safe to do so. It retries Chrome startup once after
+// clearing the locks.
+
 package bridge
 
 import (

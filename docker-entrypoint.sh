@@ -22,4 +22,13 @@ if [ -z "${PINCHTAB_CONFIG:-}" ] && [ -z "${PINCHTAB_BIND:-}" ]; then
   export PINCHTAB_BIND=0.0.0.0
 fi
 
+# Chrome requires --no-sandbox inside containers (no user namespace available).
+# Backfill the flag into managed config if not already set.
+if [ -z "${PINCHTAB_CONFIG:-}" ] && [ -f "$default_config_path" ]; then
+  current_flags="$(/usr/local/bin/pinchtab config get browser.extraFlags 2>/dev/null || true)"
+  if [ -z "$current_flags" ]; then
+    /usr/local/bin/pinchtab config set browser.extraFlags "--no-sandbox --disable-gpu" >/dev/null
+  fi
+fi
+
 exec "$@"

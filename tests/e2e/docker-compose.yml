@@ -7,7 +7,6 @@ services:
     environment:
       PINCHTAB_CONFIG: /config/pinchtab.json
       PINCHTAB_PORT: "9999"
-      CHROME_BIN: /usr/bin/chromium
     volumes:
       - ./config/pinchtab.json:/config/pinchtab.json:ro
     ports:
@@ -29,7 +28,6 @@ services:
     environment:
       PINCHTAB_CONFIG: /config/pinchtab-secure.json
       PINCHTAB_PORT: "9999"
-      CHROME_BIN: /usr/bin/chromium
     volumes:
       - ./config/pinchtab-secure.json:/config/pinchtab-secure.json:ro
     ports:

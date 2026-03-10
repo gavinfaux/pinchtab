@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -548,7 +549,7 @@ func newPrefixedLogWriter(dst io.Writer, prefix string) *prefixedLogWriter {
 func (w *prefixedLogWriter) Write(p []byte) (int, error) {
 	w.buf = append(w.buf, p...)
 	for {
-		idx := bytesIndexByte(w.buf, '\n')
+		idx := bytes.IndexByte(w.buf, '\n')
 		if idx < 0 {
 			break
 		}
@@ -568,13 +569,4 @@ func (w *prefixedLogWriter) writeLine(line []byte) error {
 	}
 	_, err := fmt.Fprintf(w.dst, "%s: %s\n", w.prefix, text)
 	return err
-}
-
-func bytesIndexByte(b []byte, c byte) int {
-	for i, v := range b {
-		if v == c {
-			return i
-		}
-	}
-	return -1
 }
