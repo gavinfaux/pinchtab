@@ -8,73 +8,88 @@ import (
 	"strings"
 
 	"github.com/pinchtab/pinchtab/internal/config"
+	"github.com/spf13/cobra"
 )
+
+var securityCmd = &cobra.Command{
+	Use:   "security",
+	Short: "Review runtime security posture",
+	Long:  "Shows runtime security posture and offers to restore recommended security defaults.",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		handleSecurityCommand(cfg)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(securityCmd)
+}
 
 func handleSecurityCommand(cfg *config.RuntimeConfig) {
 	warnings := assessSecurityWarnings(cfg)
 	recommended := recommendedSecurityDefaultLines(cfg)
 
-	fmt.Println("Security posture:")
+	fmt.Println(styleStdout(cliHeadingStyle, "Security posture"))
 	fmt.Println()
 	printSecuritySummary(os.Stdout, cfg, "  ")
 
 	if len(warnings) == 0 {
-		fmt.Println("Warnings:")
+		fmt.Println(styleStdout(cliHeadingStyle, "Warnings"))
 		fmt.Println()
-		fmt.Println("  none")
+		fmt.Println("  " + styleStdout(cliMutedStyle, "none"))
 	} else {
-		fmt.Println("Warnings:")
+		fmt.Println(styleStdout(cliHeadingStyle, "Warnings"))
 		fmt.Println()
 		for _, warning := range warnings {
-			fmt.Printf("  - %s\n", warning.Message)
+			fmt.Printf("  - %s\n", styleStdout(cliWarningStyle, warning.Message))
 			for i := 0; i+1 < len(warning.Attrs); i += 2 {
 				key, ok := warning.Attrs[i].(string)
 				if !ok || key == "hint" {
 					continue
 				}
-				fmt.Printf("      %s: %s\n", key, formatSecurityValue(warning.Attrs[i+1]))
+				fmt.Printf("      %s: %s\n", styleStdout(cliMutedStyle, key), styleStdout(cliValueStyle, formatSecurityValue(warning.Attrs[i+1])))
 			}
 			for i := 0; i+1 < len(warning.Attrs); i += 2 {
 				key, ok := warning.Attrs[i].(string)
 				if ok && key == "hint" {
-					fmt.Printf("      hint: %s\n", formatSecurityValue(warning.Attrs[i+1]))
+					fmt.Printf("      %s: %s\n", styleStdout(cliMutedStyle, "hint"), styleStdout(cliValueStyle, formatSecurityValue(warning.Attrs[i+1])))
 				}
 			}
 		}
 	}
 
 	fmt.Println()
-	fmt.Println("Recommended security defaults:")
+	fmt.Println(styleStdout(cliHeadingStyle, "Recommended security defaults"))
 	fmt.Println()
 	if len(recommended) == 0 {
-		fmt.Println("  none")
+		fmt.Println("  " + styleStdout(cliMutedStyle, "none"))
 	} else {
 		printRecommendedSecurityDefaults(recommended)
 	}
 	fmt.Println()
 
 	if !isInteractiveTerminal() {
-		fmt.Println("Interactive restore skipped because stdin/stdout is not a terminal.")
+		fmt.Println(styleStdout(cliMutedStyle, "Interactive restore skipped because stdin/stdout is not a terminal."))
 		return
 	}
 
 	if !promptRestoreDefaults() {
-		fmt.Println("No changes made.")
+		fmt.Println(styleStdout(cliMutedStyle, "No changes made."))
 		return
 	}
 
 	configPath, changed, err := restoreSecurityDefaults()
 	if err != nil {
-		fmt.Printf("Error restoring defaults: %v\n", err)
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Error restoring defaults: %v", err)))
 		os.Exit(1)
 	}
 	if !changed {
-		fmt.Printf("Security defaults already match %s\n", configPath)
+		fmt.Println(styleStdout(cliMutedStyle, fmt.Sprintf("Security defaults already match %s", configPath)))
 		return
 	}
 
-	fmt.Printf("Security defaults restored in %s\n", configPath)
-	fmt.Println("Restart PinchTab to apply file-based changes.")
+	fmt.Println(styleStdout(cliSuccessStyle, fmt.Sprintf("Security defaults restored in %s", configPath)))
+	fmt.Println(styleStdout(cliMutedStyle, "Restart PinchTab to apply file-based changes."))
 }
 
 func formatSecurityValue(value any) string {
@@ -86,15 +101,9 @@ func formatSecurityValue(value any) string {
 	}
 }
 
-func securityUsage() {
-	fmt.Println("Usage: pinchtab security")
-	fmt.Println()
-	fmt.Println("Shows runtime security posture and offers to restore recommended security defaults.")
-}
-
 func printRecommendedSecurityDefaults(lines []string) {
 	for _, line := range lines {
-		fmt.Printf("  - %s\n", line)
+		fmt.Printf("  - %s\n", styleStdout(cliValueStyle, line))
 	}
 }
 
@@ -157,7 +166,7 @@ func recommendedSecurityDefaultLines(cfg *config.RuntimeConfig) []string {
 }
 
 func promptRestoreDefaults() bool {
-	fmt.Print("Restore recommended security defaults in config? (y/N): ")
+	fmt.Print(styleStdout(cliHeadingStyle, "Restore recommended security defaults in config?") + " " + styleStdout(cliMutedStyle, "(y/N): "))
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil && strings.TrimSpace(response) == "" {

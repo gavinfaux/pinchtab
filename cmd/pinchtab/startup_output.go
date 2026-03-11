@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/pinchtab/pinchtab/internal/cliui"
 	"github.com/pinchtab/pinchtab/internal/config"
 )
 
@@ -14,6 +16,7 @@ type startupBannerOptions struct {
 	ListenAddr string
 	PublicURL  string
 	Strategy   string
+	Allocation string
 	ProfileDir string
 }
 
@@ -23,9 +26,16 @@ func printStartupBanner(cfg *config.RuntimeConfig, opts startupBannerOptions) {
 	if opts.PublicURL != "" {
 		writeBannerf("  %s  %s\n", styleLabel("url"), styleValue(opts.PublicURL))
 	}
-	if opts.Strategy != "" {
-		writeBannerf("  %s  %s\n", styleLabel("strategy"), styleValue(opts.Strategy))
+	strat := blankIfEmpty(opts.Strategy, "manual")
+	alloc := blankIfEmpty(opts.Allocation, "none")
+	writeBannerf("  %s  %s\n", styleLabel("str,plc"), styleValue(fmt.Sprintf("%s,%s", strat, alloc)))
+
+	daemonStatus := styleStdout(cliWarningStyle, "not installed")
+	if IsDaemonInstalled() {
+		daemonStatus = styleStdout(cliSuccessStyle, "ok")
 	}
+	writeBannerf("  %s  %s\n", styleLabel("daemon"), daemonStatus)
+
 	if opts.ProfileDir != "" {
 		writeBannerf("  %s  %s\n", styleLabel("profile"), styleValue(opts.ProfileDir))
 	}
@@ -97,92 +107,63 @@ func writeSummaryf(w io.Writer, format string, args ...any) {
 }
 
 func styleLogo(text string) string {
-	return applyStyle(text, ansiBold, ansiCyan)
+	return applyStyle(text, lipgloss.NewStyle().Foreground(cliui.ColorAccent).Bold(true))
 }
 
 func styleMode(text string) string {
-	return applyStyle(text, ansiDim)
+	return applyStyle(text, lipgloss.NewStyle().Foreground(cliui.ColorTextMuted))
 }
 
 func styleLabel(text string) string {
-	return applyStyle(fmt.Sprintf("%-8s", text), ansiDim)
+	return applyStyle(fmt.Sprintf("%-8s", text), lipgloss.NewStyle().Foreground(cliui.ColorTextMuted))
 }
 
 func styleValue(text string) string {
-	return applyStyle(text, ansiBold)
+	return applyStyle(text, lipgloss.NewStyle().Foreground(cliui.ColorTextPrimary).Bold(true))
 }
 
 func styleCheckLabel(text string) string {
-	return applyStyle(fmt.Sprintf("%-20s", text), ansiDim)
+	return applyStyle(fmt.Sprintf("%-20s", text), lipgloss.NewStyle().Foreground(cliui.ColorTextMuted))
 }
 
 func styleCheckDetail(passed bool, text string) string {
 	if passed {
-		return applyStyle(text, ansiGreen)
+		return applyStyle(text, lipgloss.NewStyle().Foreground(cliui.ColorSuccess))
 	}
-	return applyStyle(text, ansiYellow)
+	return applyStyle(text, lipgloss.NewStyle().Foreground(cliui.ColorWarning))
 }
 
 func styleMarker(passed bool) string {
 	if passed {
-		return applyStyle("ok", ansiBold, ansiGreen)
+		return applyStyle("ok", lipgloss.NewStyle().Foreground(cliui.ColorSuccess).Bold(true))
 	}
-	return applyStyle("!!", ansiBold, ansiRed)
+	return applyStyle("!!", lipgloss.NewStyle().Foreground(cliui.ColorDanger).Bold(true))
 }
 
 func styleSecurityLevel(level string) string {
-	return applyStyle(level, ansiBold, securityLevelColor(level))
+	return applyStyle(level, lipgloss.NewStyle().Foreground(lipgloss.Color(securityLevelColor(level))).Bold(true))
 }
 
 func styleSecurityBar(level, bar string) string {
-	return applyStyle(bar, ansiBold, securityLevelColor(level))
+	return applyStyle(bar, lipgloss.NewStyle().Foreground(lipgloss.Color(securityLevelColor(level))).Bold(true))
 }
 
 func securityLevelColor(level string) string {
 	switch level {
 	case "LOCKED":
-		return ansiGreen
+		return string(cliui.ColorSuccess)
 	case "GUARDED":
-		return ansiYellow
+		return string(cliui.ColorWarning)
 	case "ELEVATED":
-		return ansiRed
+		return string(cliui.ColorDanger)
 	default:
-		return ansiRed
+		return string(cliui.ColorDanger)
 	}
 }
 
-func applyStyle(text string, codes ...string) string {
-	if !shouldColorizeOutput() || len(codes) == 0 {
-		return text
-	}
-	return "\x1b[" + strings.Join(codes, ";") + "m" + text + "\x1b[0m"
+func applyStyle(text string, style lipgloss.Style) string {
+	return cliui.RenderStdout(style, text)
 }
-
-func shouldColorizeOutput() bool {
-	if os.Getenv("NO_COLOR") != "" {
-		return false
-	}
-	if force := os.Getenv("CLICOLOR_FORCE"); force != "" && force != "0" {
-		return true
-	}
-	if strings.EqualFold(os.Getenv("TERM"), "dumb") {
-		return false
-	}
-	info, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-	return (info.Mode() & os.ModeCharDevice) != 0
-}
-
-const (
-	ansiBold   = "1"
-	ansiDim    = "2"
-	ansiRed    = "31"
-	ansiGreen  = "32"
-	ansiYellow = "33"
-	ansiCyan   = "36"
-)
 
 const startupLogo = `   ____  _            _     _____     _
   |  _ \(_)_ __   ___| |__ |_   _|_ _| |__

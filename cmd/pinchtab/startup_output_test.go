@@ -1,17 +1,21 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/pinchtab/pinchtab/internal/cliui"
+)
 
 func TestSecurityLevelColor(t *testing.T) {
 	tests := []struct {
 		level string
 		want  string
 	}{
-		{level: "LOCKED", want: ansiGreen},
-		{level: "GUARDED", want: ansiYellow},
-		{level: "ELEVATED", want: ansiRed},
-		{level: "EXPOSED", want: ansiRed},
-		{level: "UNKNOWN", want: ansiRed},
+		{level: "LOCKED", want: string(cliui.ColorSuccess)},
+		{level: "GUARDED", want: string(cliui.ColorWarning)},
+		{level: "ELEVATED", want: string(cliui.ColorDanger)},
+		{level: "EXPOSED", want: string(cliui.ColorDanger)},
+		{level: "UNKNOWN", want: string(cliui.ColorDanger)},
 	}
 
 	for _, tt := range tests {

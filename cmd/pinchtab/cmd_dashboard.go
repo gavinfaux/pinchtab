@@ -22,6 +22,7 @@ import (
 	"github.com/pinchtab/pinchtab/internal/scheduler"
 	"github.com/pinchtab/pinchtab/internal/strategy"
 	"github.com/pinchtab/pinchtab/internal/web"
+	"github.com/spf13/cobra"
 
 	// Register strategies via init().
 	_ "github.com/pinchtab/pinchtab/internal/strategy/alwayson"
@@ -29,6 +30,29 @@ import (
 	_ "github.com/pinchtab/pinchtab/internal/strategy/explicit"
 	_ "github.com/pinchtab/pinchtab/internal/strategy/simple"
 )
+
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Start full server explicitly",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runDashboard(cfg)
+	},
+}
+
+var bridgeCmd = &cobra.Command{
+	Use:   "bridge",
+	Short: "Start single-instance bridge-only server",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runBridgeServer(cfg)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(bridgeCmd)
+}
 
 // runDashboard starts a lightweight dashboard server — no Chrome, no bridge.
 // It manages PinchTab instances via the orchestrator and serves the dashboard UI.
@@ -38,12 +62,6 @@ func runDashboard(cfg *config.RuntimeConfig) {
 		dashPort = "9870"
 	}
 	startedAt := time.Now()
-	printStartupBanner(cfg, startupBannerOptions{
-		Mode:       "server",
-		ListenAddr: cfg.Bind + ":" + dashPort,
-		PublicURL:  fmt.Sprintf("http://localhost:%s", dashPort),
-		Strategy:   cfg.Strategy,
-	})
 
 	profilesDir := cfg.ProfilesBaseDir
 	if err := os.MkdirAll(profilesDir, 0755); err != nil {
@@ -86,6 +104,7 @@ func runDashboard(cfg *config.RuntimeConfig) {
 	// instance management and shorthand route registration. Otherwise fall back
 	// to the default manual route setup for backward compatibility.
 	var activeStrategy strategy.Strategy
+	stratName := "manual"
 	if cfg.Strategy != "" {
 		strat, err := strategy.New(cfg.Strategy)
 		if err != nil {
@@ -100,9 +119,31 @@ func runDashboard(cfg *config.RuntimeConfig) {
 			}
 			strat.RegisterRoutes(mux)
 			activeStrategy = strat
-			slog.Info("strategy activated", "strategy", strat.Name())
+			stratName = strat.Name()
 		}
 	}
+
+	allocPolicy := cfg.AllocationPolicy
+	if allocPolicy == "" {
+		allocPolicy = "none"
+	}
+
+	printStartupBanner(cfg, startupBannerOptions{
+		Mode:       "server",
+		ListenAddr: cfg.Bind + ":" + dashPort,
+		PublicURL:  fmt.Sprintf("http://localhost:%s", dashPort),
+		Strategy:   stratName,
+		Allocation: allocPolicy,
+	})
+
+	if IsDaemonRunning() && checkPinchTabRunning(dashPort, cfg.Token) {
+		fmt.Println(styleStdout(cliWarningStyle, fmt.Sprintf("  pinchtab already running as a daemon on port %s", dashPort)))
+		fmt.Println(styleStdout(cliMutedStyle, "  Stop the daemon first with `pinchtab daemon stop` to run in the foreground."))
+		fmt.Println()
+		os.Exit(0)
+	}
+
+	slog.Info("orchestration", "strategy", stratName, "allocation", allocPolicy)
 
 	// If no strategy handled route registration, register default routes.
 	if activeStrategy == nil {
@@ -162,9 +203,7 @@ func runDashboard(cfg *config.RuntimeConfig) {
 		IdleTimeout:       120 * time.Second,
 	}
 
-	// Start strategy lifecycle if active. For strategies like simple-autorestart,
-	// Start() launches the initial instance and begins crash monitoring.
-	// When a strategy handles auto-launch, skip the manual auto-launch below.
+	// Start strategy lifecycle if active.
 	strategyHandlesLaunch := false
 	if activeStrategy != nil {
 		if err := activeStrategy.Start(context.Background()); err != nil {
@@ -185,8 +224,6 @@ func runDashboard(cfg *config.RuntimeConfig) {
 		go func() {
 			time.Sleep(500 * time.Millisecond)
 			profileToLaunch := defaultProfile
-			// If profile is not explicitly configured, prefer an existing profile.
-			// Only synthesize "default" when nothing exists yet.
 			if !defaultProfileExplicit {
 				list, err := profMgr.List()
 				if err != nil {
@@ -252,49 +289,26 @@ func runDashboard(cfg *config.RuntimeConfig) {
 		os.Exit(130)
 	}()
 
-	// Periodic health check: log tabs and Chrome process info every 30 seconds
-	go periodicHealthCheck(orch)
-
+	slog.Info("dashboard started", "port", dashPort)
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		slog.Error("server", "err", err)
 		os.Exit(1)
 	}
 }
 
-// periodicHealthCheck logs instance and Chrome process status every 30 seconds
-func periodicHealthCheck(orch *orchestrator.Orchestrator) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		// Get instance information
-		instances := orch.List()
-		if len(instances) == 0 {
-			continue // No instances running, skip logging
-		}
-
-		// Count instances by headedness
-		headedCount := 0
-		headlessCount := 0
-
-		for _, inst := range instances {
-			if inst.Headless {
-				headlessCount++
-			} else {
-				headedCount++
-			}
-		}
-
-		// Get tabs across all instances
-		allTabs := orch.AllTabs()
-
-		slog.Info("health check",
-			"instances", len(instances),
-			"headed", headedCount,
-			"headless", headlessCount,
-			"total_tabs", len(allTabs),
-		)
+func checkPinchTabRunning(port, token string) bool {
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	url := fmt.Sprintf("http://localhost:%s/health", port)
+	req, _ := http.NewRequest("GET", url, nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == 200
 }
 
 // registerDefaultProxyRoutes adds the default shorthand proxy routes

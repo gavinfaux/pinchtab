@@ -14,21 +14,314 @@ import (
 	"time"
 
 	"github.com/pinchtab/pinchtab/internal/config"
+	"github.com/spf13/cobra"
 )
+
+var quickCmd = &cobra.Command{
+	Use:   "quick <url>",
+	Short: "Navigate + analyze page (beginner-friendly)",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliQuick(client, base, token, args)
+		})
+	},
+}
+
+var navCmd = &cobra.Command{
+	Use:   "nav <url>",
+	Short: "Navigate to URL",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliNavigate(client, base, token, args)
+		})
+	},
+}
+
+var snapCmd = &cobra.Command{
+	Use:   "snap",
+	Short: "Snapshot accessibility tree",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliSnapshot(client, base, token, args)
+		})
+	},
+}
+
+var clickCmd = &cobra.Command{
+	Use:   "click <ref>",
+	Short: "Click element",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliTabOperation(client, base, token, "click", args)
+		})
+	},
+}
+
+var typeCmd = &cobra.Command{
+	Use:   "type <ref> <text>",
+	Short: "Type into element",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliTabOperation(client, base, token, "type", args)
+		})
+	},
+}
+
+var screenshotCmd = &cobra.Command{
+	Use:   "screenshot",
+	Short: "Take a screenshot",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliScreenshot(client, base, token, args)
+		})
+	},
+}
+
+var tabsCmd = &cobra.Command{
+	Use:   "tabs",
+	Short: "List or manage tabs",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliTabs(client, base, token, args)
+		})
+	},
+}
+
+var instancesCmd = &cobra.Command{
+	Use:   "instances",
+	Short: "List or manage instances",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliInstances(client, base, token)
+		})
+	},
+}
+
+var healthCmd = &cobra.Command{
+	Use:   "health",
+	Short: "Check server health",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliHealth(client, base, token)
+		})
+	},
+}
+
+var pressCmd = &cobra.Command{
+	Use:   "press <key>",
+	Short: "Press key (Enter, Tab, Escape...)",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliAction(client, base, token, "press", args)
+		})
+	},
+}
+
+var fillCmd = &cobra.Command{
+	Use:   "fill <ref|selector> <text>",
+	Short: "Fill input directly",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliAction(client, base, token, "fill", args)
+		})
+	},
+}
+
+var hoverCmd = &cobra.Command{
+	Use:   "hover <ref>",
+	Short: "Hover element",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliAction(client, base, token, "hover", args)
+		})
+	},
+}
+
+var scrollCmd = &cobra.Command{
+	Use:   "scroll <ref|pixels>",
+	Short: "Scroll to element or by pixels",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliAction(client, base, token, "scroll", args)
+		})
+	},
+}
+
+var evalCmd = &cobra.Command{
+	Use:   "eval <expression>",
+	Short: "Evaluate JavaScript",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliEvaluate(client, base, token, args)
+		})
+	},
+}
+
+var pdfCmd = &cobra.Command{
+	Use:   "pdf",
+	Short: "Export the current page as PDF",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliPDF(client, base, token, args)
+		})
+	},
+}
+
+var textCmd = &cobra.Command{
+	Use:   "text",
+	Short: "Extract page text",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliText(client, base, token, args)
+		})
+	},
+}
+
+var profilesCmd = &cobra.Command{
+	Use:   "profiles",
+	Short: "List browser profiles",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		runCLIWith(cfg, func(client *http.Client, base, token string) {
+			cliProfiles(client, base, token)
+		})
+	},
+}
+
+var instanceCmd = &cobra.Command{
+	Use:   "instance",
+	Short: "Manage browser instances",
+}
+
+func init() {
+	rootCmd.AddCommand(quickCmd)
+	rootCmd.AddCommand(navCmd)
+	rootCmd.AddCommand(snapCmd)
+	rootCmd.AddCommand(clickCmd)
+	rootCmd.AddCommand(typeCmd)
+	rootCmd.AddCommand(screenshotCmd)
+	rootCmd.AddCommand(tabsCmd)
+	rootCmd.AddCommand(instancesCmd)
+	rootCmd.AddCommand(healthCmd)
+	rootCmd.AddCommand(pressCmd)
+	rootCmd.AddCommand(fillCmd)
+	rootCmd.AddCommand(hoverCmd)
+	rootCmd.AddCommand(scrollCmd)
+	rootCmd.AddCommand(evalCmd)
+	rootCmd.AddCommand(pdfCmd)
+	rootCmd.AddCommand(textCmd)
+	rootCmd.AddCommand(profilesCmd)
+
+	instanceCmd.AddCommand(&cobra.Command{
+		Use:   "start <name>",
+		Short: "Start a browser instance",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := config.Load()
+			runCLIWith(cfg, func(client *http.Client, base, token string) {
+				cliInstanceStart(client, base, token, args)
+			})
+		},
+	})
+	instanceCmd.AddCommand(&cobra.Command{
+		Use:   "navigate <id> <url>",
+		Short: "Navigate an instance to a URL",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := config.Load()
+			runCLIWith(cfg, func(client *http.Client, base, token string) {
+				cliInstanceNavigate(client, base, token, args)
+			})
+		},
+	})
+	instanceCmd.AddCommand(&cobra.Command{
+		Use:   "stop <id>",
+		Short: "Stop a browser instance",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := config.Load()
+			runCLIWith(cfg, func(client *http.Client, base, token string) {
+				cliInstanceStop(client, base, token, args)
+			})
+		},
+	})
+	instanceCmd.AddCommand(&cobra.Command{
+		Use:   "logs <id>",
+		Short: "Get instance logs",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := config.Load()
+			runCLIWith(cfg, func(client *http.Client, base, token string) {
+				cliInstanceLogs(client, base, token, args)
+			})
+		},
+	})
+	rootCmd.AddCommand(instanceCmd)
+}
+
+func runCLIWith(cfg *config.RuntimeConfig, fn func(client *http.Client, base, token string)) {
+	client := &http.Client{Timeout: 60 * time.Second}
+	dashPort := cfg.Port
+	if dashPort == "" {
+		dashPort = "9870"
+	}
+	base := fmt.Sprintf("http://localhost:%s", dashPort)
+	token := cfg.Token
+
+	fn(client, base, token)
+}
 
 func printHelp() {
 	fmt.Printf(`pinchtab %s - Browser control for AI agents
 
-MODES:
-  pinchtab                  Start full server (default)
+Usage:
+  pinchtab [command] [flags]
+
+Primary commands (most users start here):
+  pinchtab                  Start the full server (default: headed or headless via env)
+                            -> Launches Chrome instances + HTTP API on http://localhost:9867
+  pinchtab onboard          Guided interactive setup (recommended first run)
+                            -> Configures profiles, daemon, stealth, and security defaults
+
+OTHER COMMANDS:
   pinchtab server           Start full server explicitly
   pinchtab bridge           Start single-instance bridge-only server
+<<<<<<< HEAD
   pinchtab mcp              Start MCP (Model Context Protocol) server on stdio
+=======
+  pinchtab daemon           Manage the background service
+>>>>>>> 97fee9e (refator: splitting big files based on responsibility)
   pinchtab connect <name>   Get URL for a running profile
   pinchtab security         Review runtime security posture
 
 QUICK START (requires running server):
   pinchtab quick <url>                  Navigate + analyze page (beginner-friendly)
+  pinchtab onboard --install-daemon     Guided setup + install a user daemon
 
 CLI COMMANDS:
   pinchtab nav <url>                    Navigate to URL
@@ -435,9 +728,9 @@ func cliTabs(client *http.Client, base, token string, args []string) {
 		// Check if any instances are running
 		instances := getInstances(client, base, token)
 		if len(instances) == 0 {
-			fmt.Fprintf(os.Stderr, "📍 No instances running, launching default...\n")
+			fmt.Fprintln(os.Stderr, styleStderr(cliWarningStyle, "No instances running, launching default..."))
 			launchInstance(client, base, token, "default")
-			fmt.Fprintf(os.Stderr, "✅ Instance launched\n")
+			fmt.Fprintln(os.Stderr, styleStderr(cliSuccessStyle, "Instance launched"))
 		}
 
 		body := map[string]any{"action": "new"}
@@ -539,7 +832,7 @@ func cliTabOperation(client *http.Client, base, token string, op string, args []
 		}
 		if data != nil {
 			if err := os.WriteFile(outFile, data, 0600); err == nil {
-				fmt.Printf("Saved %s (%d bytes)\n", outFile, len(data))
+				fmt.Println(styleStdout(cliSuccessStyle, fmt.Sprintf("Saved %s (%d bytes)", outFile, len(data))))
 			}
 		}
 
@@ -761,7 +1054,7 @@ func cliScreenshot(client *http.Client, base, token string, args []string) {
 	if err := os.WriteFile(outFile, data, 0600); err != nil {
 		fatal("Write failed: %v", err)
 	}
-	fmt.Printf("Saved %s (%d bytes)\n", outFile, len(data))
+	fmt.Println(styleStdout(cliSuccessStyle, fmt.Sprintf("Saved %s (%d bytes)", outFile, len(data))))
 }
 
 // --- evaluate ---
@@ -890,7 +1183,7 @@ func cliPDF(client *http.Client, base, token string, args []string) {
 	if err := os.WriteFile(outFile, data, 0600); err != nil {
 		fatal("Write failed: %v", err)
 	}
-	fmt.Printf("Saved %s (%d bytes)\n", outFile, len(data))
+	fmt.Println(styleStdout(cliSuccessStyle, fmt.Sprintf("Saved %s (%d bytes)", outFile, len(data))))
 }
 
 // --- quick command ---
@@ -900,7 +1193,7 @@ func cliQuick(client *http.Client, base, token string, args []string) {
 		fatal("Usage: pinchtab quick <url>")
 	}
 
-	fmt.Println("🦀 Navigating to", args[0], "...")
+	fmt.Println(styleStdout(cliHeadingStyle, fmt.Sprintf("Navigating to %s...", args[0])))
 
 	// Navigate
 	navBody := map[string]any{"url": args[0]}
@@ -909,7 +1202,8 @@ func cliQuick(client *http.Client, base, token string, args []string) {
 	// Small delay for page to stabilize
 	time.Sleep(1 * time.Second)
 
-	fmt.Println("\n📋 Page structure:")
+	fmt.Println()
+	fmt.Println(styleStdout(cliHeadingStyle, "Page structure"))
 
 	// Snapshot with interactive filter
 	snapParams := url.Values{}
@@ -919,17 +1213,19 @@ func cliQuick(client *http.Client, base, token string, args []string) {
 
 	// Extract info from navigation result
 	if title, ok := navResult["title"].(string); ok {
-		fmt.Printf("\n📌 Title: %s\n", title)
+		fmt.Println()
+		fmt.Printf("%s %s\n", styleStdout(cliMutedStyle, "Title:"), styleStdout(cliValueStyle, title))
 	}
 	if urlStr, ok := navResult["url"].(string); ok {
-		fmt.Printf("🔗 URL: %s\n", urlStr)
+		fmt.Printf("%s %s\n", styleStdout(cliMutedStyle, "URL:"), styleStdout(cliValueStyle, urlStr))
 	}
 
-	fmt.Println("\n💡 Quick actions:")
-	fmt.Println("  pinchtab click <ref>        # Click an element (use refs from above)")
-	fmt.Println("  pinchtab type <ref> <text>  # Type into input field")
-	fmt.Println("  pinchtab screenshot         # Take a screenshot")
-	fmt.Println("  pinchtab pdf --tab <id> -o output.pdf  # Save tab as PDF")
+	fmt.Println()
+	fmt.Println(styleStdout(cliHeadingStyle, "Quick actions"))
+	fmt.Printf("  %s %s\n", styleStdout(cliCommandStyle, "pinchtab click <ref>"), styleStdout(cliMutedStyle, "# Click an element (use refs from above)"))
+	fmt.Printf("  %s %s\n", styleStdout(cliCommandStyle, "pinchtab type <ref> <text>"), styleStdout(cliMutedStyle, "# Type into input field"))
+	fmt.Printf("  %s %s\n", styleStdout(cliCommandStyle, "pinchtab screenshot"), styleStdout(cliMutedStyle, "# Take a screenshot"))
+	fmt.Printf("  %s %s\n", styleStdout(cliCommandStyle, "pinchtab pdf --tab <id> -o output.pdf"), styleStdout(cliMutedStyle, "# Save tab as PDF"))
 }
 
 // --- health ---
@@ -1138,7 +1434,7 @@ func doGet(client *http.Client, base, token, path string, params url.Values) map
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "Error %d: %s\n", resp.StatusCode, string(body))
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Error %d: %s", resp.StatusCode, string(body))))
 		os.Exit(1)
 	}
 
@@ -1175,7 +1471,7 @@ func doGetRaw(client *http.Client, base, token, path string, params url.Values) 
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "Error %d: %s\n", resp.StatusCode, string(body))
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Error %d: %s", resp.StatusCode, string(body))))
 		os.Exit(1)
 	}
 	return body
@@ -1196,7 +1492,7 @@ func doPost(client *http.Client, base, token, path string, body map[string]any) 
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "Error %d: %s\n", resp.StatusCode, string(respBody))
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Error %d: %s", resp.StatusCode, string(respBody))))
 		os.Exit(1)
 	}
 
@@ -1225,34 +1521,33 @@ func checkServerAndGuide(client *http.Client, base, token string) bool {
 	resp, err := client.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial tcp") {
-			fmt.Fprintf(os.Stderr, `❌ Pinchtab server is not running on %s
-
-To start the server:
-  pinchtab                    # Run in foreground (recommended for beginners)
-  pinchtab &                  # Run in background
-  PINCHTAB_PORT=9868 pinchtab # Use different port
-
-Then try your command again:
-  %s
-
-Learn more: https://github.com/pinchtab/pinchtab#quick-start
-`, base, strings.Join(os.Args, " "))
+			fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Pinchtab server is not running on %s", base)))
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, styleStderr(cliHeadingStyle, "To start the server"))
+			fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab"), styleStderr(cliMutedStyle, "# Run in foreground (recommended for beginners)"))
+			fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab &"), styleStderr(cliMutedStyle, "# Run in background"))
+			fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "PINCHTAB_PORT=9868 pinchtab"), styleStderr(cliMutedStyle, "# Use different port"))
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, styleStderr(cliHeadingStyle, "Then try your command again"))
+			fmt.Fprintf(os.Stderr, "  %s\n", styleStderr(cliCommandStyle, strings.Join(os.Args, " ")))
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintf(os.Stderr, "%s %s\n", styleStderr(cliMutedStyle, "Learn more:"), styleStderr(cliCommandStyle, "https://github.com/pinchtab/pinchtab#quick-start"))
 			return false
 		}
 		// Other connection errors
-		fmt.Fprintf(os.Stderr, "❌ Cannot connect to Pinchtab server: %v\n", err)
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Cannot connect to Pinchtab server: %v", err)))
 		return false
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == 401 {
-		fmt.Fprintf(os.Stderr, "❌ Authentication required. Set PINCHTAB_TOKEN.\n")
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, "Authentication required. Set PINCHTAB_TOKEN."))
 		return false
 	}
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(os.Stderr, "❌ Server error %d: %s\n", resp.StatusCode, string(body))
+		fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf("Server error %d: %s", resp.StatusCode, string(body))))
 		return false
 	}
 
@@ -1263,31 +1558,34 @@ Learn more: https://github.com/pinchtab/pinchtab#quick-start
 func suggestNextAction(cmd string, result map[string]any) {
 	switch cmd {
 	case "nav", "navigate":
-		fmt.Fprintf(os.Stderr, "\n💡 Next steps:\n")
-		fmt.Fprintf(os.Stderr, "  pinchtab snap              # See page structure\n")
-		fmt.Fprintf(os.Stderr, "  pinchtab screenshot         # Capture visual\n")
-		fmt.Fprintf(os.Stderr, "  pinchtab click <ref>        # Click an element\n")
-		fmt.Fprintf(os.Stderr, "  pinchtab pdf --tab <id> -o output.pdf  # Save tab as PDF\n")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, styleStderr(cliHeadingStyle, "Next steps"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab snap"), styleStderr(cliMutedStyle, "# See page structure"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab screenshot"), styleStderr(cliMutedStyle, "# Capture visual"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab click <ref>"), styleStderr(cliMutedStyle, "# Click an element"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab pdf --tab <id> -o output.pdf"), styleStderr(cliMutedStyle, "# Save tab as PDF"))
 
 	case "snap", "snapshot":
 		refs := extractRefs(result)
 		if len(refs) > 0 {
-			fmt.Fprintf(os.Stderr, "\n💡 Found %d interactive elements. Try:\n", len(refs))
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, styleStderr(cliHeadingStyle, fmt.Sprintf("Found %d interactive elements", len(refs))))
 			for i, ref := range refs[:min(3, len(refs))] {
-				fmt.Fprintf(os.Stderr, "  pinchtab click %s    # %s\n", ref.id, ref.desc)
+				fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, fmt.Sprintf("pinchtab click %s", ref.id)), styleStderr(cliMutedStyle, "# "+ref.desc))
 				if i >= 2 {
 					break
 				}
 			}
 			if len(refs) > 3 {
-				fmt.Fprintf(os.Stderr, "  ... and %d more\n", len(refs)-3)
+				fmt.Fprintf(os.Stderr, "  %s\n", styleStderr(cliMutedStyle, fmt.Sprintf("... and %d more", len(refs)-3)))
 			}
 		}
 
 	case "click", "type", "fill":
-		fmt.Fprintf(os.Stderr, "\n💡 Action completed. To see results:\n")
-		fmt.Fprintf(os.Stderr, "  pinchtab snap              # See updated page\n")
-		fmt.Fprintf(os.Stderr, "  pinchtab screenshot         # Visual confirmation\n")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, styleStderr(cliHeadingStyle, "Action completed"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab snap"), styleStderr(cliMutedStyle, "# See updated page"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", styleStderr(cliCommandStyle, "pinchtab screenshot"), styleStderr(cliMutedStyle, "# Visual confirmation"))
 	}
 }
 
@@ -1352,6 +1650,6 @@ func resolveInstanceBase(orchBase, token, instanceID, bind string) string {
 }
 
 func fatal(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, format+"\n", args...)
+	fmt.Fprintln(os.Stderr, styleStderr(cliErrorStyle, fmt.Sprintf(format, args...)))
 	os.Exit(1)
 }

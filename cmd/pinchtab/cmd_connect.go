@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/pinchtab/pinchtab/internal/config"
+	"github.com/spf13/cobra"
 )
 
 type profileInstanceStatus struct {
@@ -20,37 +21,34 @@ type profileInstanceStatus struct {
 	Error   string `json:"error"`
 }
 
-func handleConnectCommand(cfg *config.RuntimeConfig) {
-	profile := ""
-	dashboardURL := os.Getenv("PINCHTAB_DASHBOARD_URL")
-	jsonOut := false
+var connectCmd = &cobra.Command{
+	Use:   "connect <profile>",
+	Short: "Get URL for a running profile",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Load()
+		jsonOut, _ := cmd.Flags().GetBool("json")
+		dashboardURL, _ := cmd.Flags().GetString("dashboard")
+		handleConnectCommand(cfg, args[0], dashboardURL, jsonOut)
+	},
+}
 
-	args := os.Args[2:]
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch arg {
-		case "--json":
-			jsonOut = true
-		case "--dashboard":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "missing value for --dashboard")
-				os.Exit(2)
-			}
-			i++
-			dashboardURL = args[i]
-		default:
-			if profile == "" {
-				profile = arg
-			}
-		}
-	}
+func init() {
+	connectCmd.Flags().Bool("json", false, "Output as JSON")
+	connectCmd.Flags().String("dashboard", "", "Dashboard URL (e.g. http://localhost:9867)")
+	rootCmd.AddCommand(connectCmd)
+}
 
-	if profile == "" {
-		fmt.Fprintln(os.Stderr, "Usage: pinchtab connect <profile> [--dashboard http://localhost:9867] [--json]")
-		os.Exit(2)
+func handleConnectCommand(cfg *config.RuntimeConfig, profile, dashboardURL string, jsonOut bool) {
+	if dashboardURL == "" {
+		dashboardURL = os.Getenv("PINCHTAB_DASHBOARD_URL")
 	}
 	if dashboardURL == "" {
-		dashboardURL = "http://localhost:" + cfg.Port
+		dashPort := cfg.Port
+		if dashPort == "" {
+			dashPort = "9870"
+		}
+		dashboardURL = "http://localhost:" + dashPort
 	}
 
 	reqURL := stringsTrimRightSlash(dashboardURL) + "/profiles/" + url.PathEscape(profile) + "/instance"
