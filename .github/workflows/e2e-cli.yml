@@ -1,5 +1,8 @@
 name: E2E CLI Tests
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:

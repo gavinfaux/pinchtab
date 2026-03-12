@@ -25,7 +25,9 @@ end_test
 start_test "pinchtab eval (JSON result)"
 
 pt_ok eval 'JSON.stringify({a: 1, b: 2})'
-assert_output_contains '"a"' "returns JSON object"
+# Output is {"result": "{\"a\":1,\"b\":2}"} - escaped JSON
+assert_output_contains 'a' "returns JSON object"
+assert_output_contains 'b' "contains both keys"
 
 end_test
 
