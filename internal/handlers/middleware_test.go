@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,6 +30,59 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 	}
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503 when token is missing, got %d", w.Code)
+	}
+}
+
+func TestSecurityHeadersMiddleware_AddsHeaders(t *testing.T) {
+	handler := SecurityHeadersMiddleware(nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if got := w.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+	if got := w.Header().Get("X-Frame-Options"); got != "DENY" {
+		t.Fatalf("X-Frame-Options = %q, want DENY", got)
+	}
+	if got := w.Header().Get("Content-Security-Policy"); got != defaultCSP {
+		t.Fatalf("Content-Security-Policy = %q, want %q", got, defaultCSP)
+	}
+	if got := w.Header().Get("Strict-Transport-Security"); got != "" {
+		t.Fatalf("Strict-Transport-Security = %q, want empty for http requests", got)
+	}
+}
+
+func TestSecurityHeadersMiddleware_AddsHSTSForTLS(t *testing.T) {
+	handler := SecurityHeadersMiddleware(nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	request := httptest.NewRequest(http.MethodGet, "https://pinchtab.test/dashboard", nil)
+	request.TLS = &tls.ConnectionState{}
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+
+	if got := w.Header().Get("Strict-Transport-Security"); got != strictTransportSecurity {
+		t.Fatalf("Strict-Transport-Security = %q, want %q", got, strictTransportSecurity)
+	}
+}
+
+func TestSecurityHeadersMiddleware_UsesTrustedForwardedProtoForHSTS(t *testing.T) {
+	handler := SecurityHeadersMiddleware(&config.RuntimeConfig{TrustProxyHeaders: true}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	request := httptest.NewRequest(http.MethodGet, "http://pinchtab/dashboard", nil)
+	request.Header.Set("X-Forwarded-Proto", "https")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+
+	if got := w.Header().Get("Strict-Transport-Security"); got != strictTransportSecurity {
+		t.Fatalf("Strict-Transport-Security = %q, want %q", got, strictTransportSecurity)
 	}
 }
 
@@ -640,6 +694,10 @@ func TestRequestIDMiddleware_SetsHeader(t *testing.T) {
 }
 
 func TestRateLimitMiddleware_AllowsRequest(t *testing.T) {
+	rateMu.Lock()
+	rateBuckets = map[string][]time.Time{}
+	rateMu.Unlock()
+
 	handler := RateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	}))
@@ -652,17 +710,36 @@ func TestRateLimitMiddleware_AllowsRequest(t *testing.T) {
 	}
 }
 
-func TestRateLimitMiddleware_BypassHealthAndMetrics(t *testing.T) {
+func TestRateLimitMiddleware_HealthAndMetricsAreRateLimited(t *testing.T) {
+	rateMu.Lock()
+	rateBuckets = map[string][]time.Time{}
+	rateMu.Unlock()
+
 	handler := RateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	}))
-	for _, p := range []string{"/health", "/metrics"} {
-		req := httptest.NewRequest("GET", p, nil)
+
+	for _, path := range []string{"/health", "/metrics"} {
+		rateMu.Lock()
+		rateBuckets = map[string][]time.Time{}
+		rateMu.Unlock()
+
+		for i := 0; i < rateLimitMaxReq; i++ {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.RemoteAddr = "127.0.0.1:12345"
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			if w.Code != http.StatusOK {
+				t.Fatalf("request %d for %s: expected 200, got %d", i+1, path, w.Code)
+			}
+		}
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.RemoteAddr = "127.0.0.1:12345"
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
-		if w.Code != 200 {
-			t.Fatalf("expected 200 for %s, got %d", p, w.Code)
+		if w.Code != http.StatusTooManyRequests {
+			t.Fatalf("expected 429 for %s after limit exceeded, got %d", path, w.Code)
 		}
 	}
 }
