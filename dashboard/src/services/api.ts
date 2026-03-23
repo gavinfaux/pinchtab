@@ -4,6 +4,8 @@ import type {
   InstanceTab,
   InstanceMetrics,
   Agent,
+  AgentDetail,
+  ActivityEvent,
   CreateProfileRequest,
   CreateProfileResponse,
   LaunchInstanceRequest,
@@ -271,6 +273,14 @@ export async function fetchAllMetrics(): Promise<InstanceMetrics[]> {
   return request<InstanceMetrics[]>("/instances/metrics");
 }
 
+export async function fetchAgents(): Promise<Agent[]> {
+  return request<Agent[]>("/api/agents");
+}
+
+export async function fetchAgent(id: string): Promise<AgentDetail> {
+  return request<AgentDetail>(`/api/agents/${encodeURIComponent(id)}`);
+}
+
 export async function fetchServerMetrics(): Promise<MonitoringServerMetrics> {
   const res = await request<{ metrics: MonitoringServerMetrics }>("/metrics");
   return res.metrics;
@@ -393,27 +403,33 @@ export interface SystemEvent {
   instance?: Instance;
 }
 
-export interface AgentEvent {
-  agentId: string;
-  action: string;
-  url?: string;
-  timestamp: string;
-}
-
 export type EventHandler = {
   onSystem?: (event: SystemEvent) => void;
-  onAgent?: (event: AgentEvent) => void;
+  onActivity?: (event: ActivityEvent) => void;
   onInit?: (agents: Agent[]) => void;
   onMonitoring?: (snapshot: MonitoringSnapshot) => void;
 };
 
 export function subscribeToEvents(
   handlers: EventHandler,
-  options?: { includeMemory?: boolean },
+  options?: {
+    includeMemory?: boolean;
+    reasoningMode?: string;
+    agentId?: string;
+  },
 ): () => void {
-  const url = sameOriginUrl(
-    options?.includeMemory ? "/api/events?memory=1" : "/api/events",
-  );
+  const params = new URLSearchParams();
+  if (options?.includeMemory) {
+    params.set("memory", "1");
+  }
+  if (options?.reasoningMode) {
+    params.set("mode", options.reasoningMode);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  const basePath = options?.agentId
+    ? `/api/agents/${encodeURIComponent(options.agentId)}/events`
+    : "/api/events";
+  const url = sameOriginUrl(`${basePath}${suffix}`);
   const es = new EventSource(url);
 
   es.addEventListener("init", (e) => {
@@ -436,8 +452,17 @@ export function subscribeToEvents(
 
   es.addEventListener("action", (e) => {
     try {
-      const event = JSON.parse(e.data) as AgentEvent;
-      handlers.onAgent?.(event);
+      const event = JSON.parse(e.data) as ActivityEvent;
+      handlers.onActivity?.(event);
+    } catch {
+      // ignore
+    }
+  });
+
+  es.addEventListener("progress", (e) => {
+    try {
+      const event = JSON.parse(e.data) as ActivityEvent;
+      handlers.onActivity?.(event);
     } catch {
       // ignore
     }
@@ -467,6 +492,27 @@ export function subscribeToEvents(
     window.removeEventListener("beforeunload", cleanup);
     es.close();
   };
+}
+
+export async function postProgress(
+  agentId: string,
+  message: string,
+  progress?: number,
+  total?: number,
+): Promise<{ status: string; id: string }> {
+  return request<{ status: string; id: string }>(
+    `/api/agents/${encodeURIComponent(agentId)}/events`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channel: "progress",
+        message,
+        progress,
+        total,
+      }),
+    },
+  );
 }
 
 export async function handleRealtimeAuthFailure(): Promise<void> {
