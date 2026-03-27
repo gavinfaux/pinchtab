@@ -115,6 +115,12 @@ func (h *Handlers) HandleSolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Re-check domain policy after solve — the page may have redirected
+	// to a different domain once the challenge was resolved.
+	if _, ok := h.enforceCurrentTabDomainPolicy(w, r, ctx, resolvedTabID); !ok {
+		return
+	}
+
 	httpx.JSON(w, 200, map[string]any{
 		"tabId":         resolvedTabID,
 		"solver":        result.Solver,
