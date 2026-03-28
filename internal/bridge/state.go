@@ -174,6 +174,16 @@ func (b *Bridge) SaveState() {
 	}
 }
 
+func (b *Bridge) ClearSavedState() {
+	if b == nil || b.Config == nil || b.Config.StateDir == "" {
+		return
+	}
+	path := filepath.Join(b.Config.StateDir, "sessions.json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		slog.Warn("clear saved state", "path", path, "err", err)
+	}
+}
+
 func (b *Bridge) RestoreState() {
 	path := filepath.Join(b.Config.StateDir, "sessions.json")
 	data, err := os.ReadFile(path)

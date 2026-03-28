@@ -422,6 +422,13 @@ func (m *MockBridge) EnsureChrome(cfg *config.RuntimeConfig) error {
 	return nil
 }
 
+func (m *MockBridge) RestartBrowser(cfg *config.RuntimeConfig) error {
+	if m.ensureChromeErr != "" {
+		return fmt.Errorf("%s", m.ensureChromeErr)
+	}
+	return nil
+}
+
 func (m *MockBridge) StealthStatus() *stealth.Status {
 	return &stealth.Status{
 		Level:         stealth.LevelLight,

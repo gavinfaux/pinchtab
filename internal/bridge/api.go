@@ -36,6 +36,7 @@ type BridgeAPI interface {
 	Unlock(tabID, owner string) error
 
 	EnsureChrome(cfg *config.RuntimeConfig) error
+	RestartBrowser(cfg *config.RuntimeConfig) error
 	StealthStatus() *stealth.Status
 
 	// Memory metrics

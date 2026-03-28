@@ -70,6 +70,18 @@ func (h *Handlers) HandleEnsureChrome(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, 200, map[string]string{"status": "chrome_ready"})
 }
 
+func (h *Handlers) HandleBrowserRestart(w http.ResponseWriter, r *http.Request) {
+	if h.Bridge == nil {
+		httpx.Error(w, 503, fmt.Errorf("bridge not initialized"))
+		return
+	}
+	if err := h.Bridge.RestartBrowser(h.Config); err != nil {
+		httpx.Error(w, 500, fmt.Errorf("browser restart failed: %w", err))
+		return
+	}
+	httpx.JSON(w, 200, map[string]string{"status": "browser_restarted"})
+}
+
 func (h *Handlers) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 	result := map[string]any{"metrics": SnapshotMetrics()}
 	if hasFailureDiagnostics() {

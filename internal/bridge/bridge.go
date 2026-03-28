@@ -302,6 +302,83 @@ func (b *Bridge) EnsureChrome(cfg *config.RuntimeConfig) error {
 
 // Cleanup releases browser resources and removes temporary profile directories.
 // Must be called on shutdown to prevent Chrome process and disk leaks.
+func (b *Bridge) RestartBrowser(cfg *config.RuntimeConfig) error {
+	if cfg == nil {
+		cfg = b.Config
+	}
+	if cfg == nil {
+		return fmt.Errorf("runtime config is required")
+	}
+
+	b.initMu.Lock()
+
+	if b.BrowserCancel != nil {
+		b.BrowserCancel()
+		slog.Info("browser soft restart: cancelled browser context")
+	}
+	if b.AllocCancel != nil {
+		b.AllocCancel()
+		slog.Info("browser soft restart: cancelled allocator context")
+	}
+
+	profileDir := ""
+	if b.tempProfileDir != "" {
+		profileDir = b.tempProfileDir
+	} else {
+		profileDir = cfg.ProfileDir
+	}
+	if profileDir != "" {
+		time.Sleep(200 * time.Millisecond)
+		killed := killChromeByProfileDir(profileDir)
+		if killed > 0 {
+			slog.Info("browser soft restart: killed surviving chrome processes", "count", killed, "profileDir", profileDir)
+		}
+		ClearChromeSessions(profileDir)
+	}
+	b.ClearSavedState()
+
+	if b.tempProfileDir != "" {
+		if err := os.RemoveAll(b.tempProfileDir); err != nil {
+			slog.Warn("failed to remove temp profile dir during restart", "path", b.tempProfileDir, "err", err)
+		} else {
+			slog.Info("removed temp profile dir during restart", "path", b.tempProfileDir)
+		}
+		b.tempProfileDir = ""
+	}
+
+	b.initialized = false
+	b.BrowserCtx = nil
+	b.BrowserCancel = nil
+	b.AllocCtx = nil
+	b.AllocCancel = nil
+	b.TabManager = nil
+	b.stealthLaunchMode = stealth.LaunchModeUninitialized
+
+	if b.LogStore == nil {
+		b.LogStore = NewConsoleLogStore(1000)
+	} else {
+		b.LogStore = NewConsoleLogStore(1000)
+	}
+	b.netMonitor = NewNetworkMonitor(DefaultNetworkBufferSize)
+	if cfg.NetworkBufferSize > 0 {
+		b.netMonitor = NewNetworkMonitor(cfg.NetworkBufferSize)
+	}
+	b.fingerprintMu.Lock()
+	b.fingerprintOverlays = make(map[string]bool)
+	b.fingerprintMu.Unlock()
+	b.workerStealthTargets = sync.Map{}
+	b.Dialogs = NewDialogManager()
+	b.Locks = NewLockManager()
+	b.Config = cfg
+
+	b.StealthBundle = nil
+	b.Actions = nil
+	b.InitActionRegistry()
+
+	b.initMu.Unlock()
+	return b.EnsureChrome(cfg)
+}
+
 func (b *Bridge) Cleanup() {
 	// Persist open tabs so next startup can restore them
 	if b.TabManager != nil && b.tempProfileDir == "" {
