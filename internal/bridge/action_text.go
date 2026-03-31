@@ -82,7 +82,8 @@ func (b *Bridge) actionKeyboardType(ctx context.Context, req ActionRequest) (map
 	// For long strings, use insertText to avoid timeout (issue #413).
 	// We still fire a keydown at the start and keyup at the end to trigger
 	// any key-event listeners that apps might depend on.
-	if len(req.Text) > keyboardTypeThreshold {
+	// Use rune count (not byte length) since we're counting keystrokes.
+	if len([]rune(req.Text)) > keyboardTypeThreshold {
 		return b.keyboardTypeBatched(ctx, req.Text)
 	}
 
