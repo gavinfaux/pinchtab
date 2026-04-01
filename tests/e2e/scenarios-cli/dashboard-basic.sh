@@ -49,23 +49,8 @@ config_cleanup
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab dashboard --no-open without token skips clipboard"
-
-config_setup
-cat > "$CFG" <<'EOF'
-{
-  "configVersion": "2",
-  "server": {"port": "9870", "token": ""}
-}
-EOF
-
-PINCHTAB_CONFIG="$CFG" pt_ok dashboard --no-open
-
-assert_output_contains "Dashboard:" "prints dashboard heading"
-assert_output_not_contains "copied" "no clipboard message when no token"
-
-config_cleanup
-end_test
+# Note: "no token" scenario is not testable in e2e because loadConfig()
+# auto-generates a token when empty (by design).
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab dashboard --port override"
