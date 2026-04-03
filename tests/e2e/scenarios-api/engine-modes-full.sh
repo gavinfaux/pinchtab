@@ -166,11 +166,12 @@ lite_get "/snapshot?tabId=${LITE_TAB}"
 assert_ok "lite snapshot"
 LITE_ENGINE=$(echo "$RESULT" | jq -r '.engine // empty')
 
-if [ -n "$CHROME_ENGINE" ]; then
+if [ "$CHROME_ENGINE" = "chrome" ]; then
   echo -e "  ${GREEN}✓${NC} chrome engine: $CHROME_ENGINE"
   ((ASSERTIONS_PASSED++)) || true
 else
-  echo -e "  ${YELLOW}⚠${NC} chrome engine field not present (may not be wired yet)"
+  echo -e "  ${RED}✗${NC} expected engine=chrome, got: $CHROME_ENGINE"
+  ((ASSERTIONS_FAILED++)) || true
 fi
 
 if [ "$LITE_ENGINE" = "lite" ]; then

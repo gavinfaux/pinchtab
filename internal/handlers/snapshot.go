@@ -81,6 +81,9 @@ func (h *Handlers) HandleSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.recordEngine(r, "chrome")
+	w.Header().Set("X-Engine", "chrome")
+
 	// Ensure Chrome is initialized
 	if err := h.ensureChrome(); err != nil {
 		if h.writeBridgeUnavailable(w, err) {
@@ -333,6 +336,7 @@ func (h *Handlers) HandleSnapshot(w http.ResponseWriter, r *http.Request) {
 		httpx.JSON(w, 200, map[string]any{
 			"url":     url,
 			"title":   title,
+			"engine":  "chrome",
 			"diff":    true,
 			"added":   added,
 			"changed": changed,
@@ -387,10 +391,11 @@ func (h *Handlers) HandleSnapshot(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(yamlContent)
 	default:
 		resp := map[string]any{
-			"url":   url,
-			"title": title,
-			"nodes": flat,
-			"count": len(flat),
+			"url":    url,
+			"title":  title,
+			"engine": "chrome",
+			"nodes":  flat,
+			"count":  len(flat),
 		}
 		if truncated {
 			resp["truncated"] = true

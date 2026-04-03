@@ -33,6 +33,9 @@ func (h *Handlers) HandleText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.recordEngine(r, "chrome")
+	w.Header().Set("X-Engine", "chrome")
+
 	// Ensure Chrome is initialized
 	if err := h.ensureChrome(); err != nil {
 		if h.writeBridgeUnavailable(w, err) {

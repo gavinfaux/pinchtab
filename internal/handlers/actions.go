@@ -333,10 +333,11 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if engineName == "lite" {
-		w.Header().Set("X-Engine", "lite")
-		h.recordEngine(r, "lite")
+	if engineName == "" {
+		engineName = "chrome"
 	}
+	w.Header().Set("X-Engine", engineName)
+	h.recordEngine(r, engineName)
 	resp := map[string]any{"success": true, "result": result}
 	if recoveryResult != nil {
 		resp["recovery"] = recoveryResult
