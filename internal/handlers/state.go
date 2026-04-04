@@ -282,6 +282,16 @@ func (h *Handlers) HandleStateLoad(w http.ResponseWriter, r *http.Request) {
 	encryptionKey := os.Getenv("PINCHTAB_STATE_KEY")
 	path := state.ResolvePath(h.Config.StateDir, req.Name)
 
+	// ResolvePath returns a constructed path even when the file doesn't exist
+	// (for the "new save" codepath). We must verify the file actually exists
+	// before treating it as an exact match; otherwise prefix resolution
+	// never triggers.
+	if path != "" {
+		if _, statErr := os.Stat(path); statErr != nil {
+			path = "" // file doesn't exist — fall through to prefix resolution
+		}
+	}
+
 	// If no exact file found, try prefix-based resolution (most recent match).
 	if path == "" {
 		matches, err := state.FindByPrefix(h.Config.StateDir, req.Name)
@@ -289,12 +299,16 @@ func (h *Handlers) HandleStateLoad(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, 404, fmt.Errorf("no state file found for name or prefix %q", req.Name))
 			return
 		}
-		// Matches are sorted newest first; resolve the actual file path from the matched name.
-		// We must call ResolvePath with the full matched name (not the prefix) so the
-		// correct .json / .json.enc file is located on disk.
+		// Matches are sorted newest first; resolve the actual file path.
 		resolvedPath := state.ResolvePath(h.Config.StateDir, matches[0].Name)
+		// Verify the resolved path actually exists on disk
+		if resolvedPath != "" {
+			if _, statErr := os.Stat(resolvedPath); statErr != nil {
+				resolvedPath = ""
+			}
+		}
 		if resolvedPath == "" {
-			// Fallback: scan the dir directly to get the real path for this name.
+			// Last-resort fallback: scan the dir directly
 			dir := state.SessionsDir(h.Config.StateDir)
 			for _, ext := range []string{".json.enc", ".json"} {
 				candidate := filepath.Join(dir, matches[0].Name+ext)
@@ -401,7 +415,7 @@ func (h *Handlers) HandleStateLoad(w http.ResponseWriter, r *http.Request) {
 	)
 
 	httpx.JSON(w, 200, map[string]any{
-		"name":                 req.Name,
+		"name":                 sf.Name,
 		"cookiesRestored":      cookiesRestored,
 		"storageItemsRestored": storageRestored,
 		"origins":              sf.Origins,

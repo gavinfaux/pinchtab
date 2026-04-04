@@ -4,7 +4,7 @@
 ARG TARGETARCH=amd64
 
 # ── Build stage ───────────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS build
+FROM golang:1.26-alpine AS build
 WORKDIR /src
 
 # Install git for modules that need VCS metadata
