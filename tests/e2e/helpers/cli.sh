@@ -42,6 +42,11 @@ pt() {
   fi
 }
 
+# Backward-compatible alias used by some scenario scripts.
+pt_cli() {
+  pt "$@"
+}
+
 pt_ok() {
   pt "$@"
   if [ "$PT_CODE" -eq 0 ]; then
