@@ -314,3 +314,36 @@ func TestEmptyStorage(t *testing.T) {
 		t.Errorf("storage = %d, want 0", len(loaded.Storage))
 	}
 }
+
+func TestResolvePathTraversal(t *testing.T) {
+	dir := t.TempDir()
+
+	// These names should all resolve safely within the sessions dir.
+	safe := []string{"simple", "with-dashes", "session_2024"}
+	for _, name := range safe {
+		p := ResolvePath(dir, name)
+		if p == "" {
+			t.Errorf("ResolvePath(%q) rejected a safe name", name)
+		}
+	}
+
+	// These names are path traversal attempts — must return "".
+	traversal := []string{
+		"../etc/passwd",
+		"..\\windows\\system32",
+		"../../secret",
+		"/etc/passwd",
+	}
+	for _, name := range traversal {
+		p := ResolvePath(dir, name)
+		if p == "" {
+			// Good: traversal rejected.
+			continue
+		}
+		// If non-empty, check it's actually inside the sessions dir.
+		sessDir := SessionsDir(dir)
+		if len(p) <= len(sessDir) {
+			t.Errorf("ResolvePath(%q) = %q escaped sessions dir %q", name, p, sessDir)
+		}
+	}
+}

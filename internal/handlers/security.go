@@ -67,7 +67,11 @@ func (h *Handlers) endpointSecurityStates() map[string]endpointSecurityState {
 			Enabled: h.stateExportEnabled(),
 			Setting: "security.allowStateExport",
 			Message: httpx.DisabledEndpointMessage("stateExport", "security.allowStateExport"),
-			Paths:   []string{"POST /state/save", "GET /state/show"},
+			Paths: []string{
+				"GET /storage", "GET /tabs/{id}/storage",
+				"GET /state/show", "POST /state/save",
+				"POST /state/load", "DELETE /state", "POST /state/clean",
+			},
 		},
 	}
 }

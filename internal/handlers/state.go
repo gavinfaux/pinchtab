@@ -206,9 +206,10 @@ func (h *Handlers) HandleStateSave(w http.ResponseWriter, r *http.Request) {
 		"origin":    storageResult.Origin,
 		"userAgent": storageResult.UserAgent,
 	}
-	// Merge user-provided metadata
-	for k, v := range req.Metadata {
-		metadata[k] = v
+	// Namespace user-provided metadata under "custom" to prevent overwriting
+	// browser-captured provenance fields (url, origin, userAgent).
+	if len(req.Metadata) > 0 {
+		metadata["custom"] = req.Metadata
 	}
 
 	sf := &state.StateFile{
@@ -250,10 +251,17 @@ func (h *Handlers) HandleStateSave(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleStateLoad reads a state file and restores cookies and storage.
+// HandleStateLoad reads a state file and restores cookies and storage into the browser.
+// Gated behind CapStateExport: restoring cookies/storage is session injection.
 //
 // @Endpoint POST /state/load
 func (h *Handlers) HandleStateLoad(w http.ResponseWriter, r *http.Request) {
+	if !h.stateExportEnabled() {
+		httpx.ErrorCode(w, 403, "state_export_disabled", httpx.DisabledEndpointMessage("stateExport", "security.allowStateExport"), false, map[string]any{
+			"setting": "security.allowStateExport",
+		})
+		return
+	}
 	var req struct {
 		Name  string `json:"name"`
 		TabID string `json:"tabId"`
@@ -369,9 +377,16 @@ func (h *Handlers) HandleStateLoad(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleStateDelete removes a saved state file.
+// Gated behind CapStateExport: deletion is a destructive operation.
 //
 // @Endpoint DELETE /state
 func (h *Handlers) HandleStateDelete(w http.ResponseWriter, r *http.Request) {
+	if !h.stateExportEnabled() {
+		httpx.ErrorCode(w, 403, "state_export_disabled", httpx.DisabledEndpointMessage("stateExport", "security.allowStateExport"), false, map[string]any{
+			"setting": "security.allowStateExport",
+		})
+		return
+	}
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		httpx.Error(w, 400, fmt.Errorf("name query parameter is required"))
@@ -394,9 +409,16 @@ func (h *Handlers) HandleStateDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleStateClean removes state files older than a given duration.
+// Gated behind CapStateExport: bulk deletion is a destructive operation.
 //
 // @Endpoint POST /state/clean
 func (h *Handlers) HandleStateClean(w http.ResponseWriter, r *http.Request) {
+	if !h.stateExportEnabled() {
+		httpx.ErrorCode(w, 403, "state_export_disabled", httpx.DisabledEndpointMessage("stateExport", "security.allowStateExport"), false, map[string]any{
+			"setting": "security.allowStateExport",
+		})
+		return
+	}
 	var req struct {
 		OlderThanHours int `json:"olderThanHours"`
 	}

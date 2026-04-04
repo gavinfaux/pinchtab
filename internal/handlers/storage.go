@@ -32,11 +32,18 @@ func (h *Handlers) HandleStorage(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleStorageGet retrieves localStorage and/or sessionStorage items.
+// Gated behind CapStateExport: storage can contain auth tokens and session data.
 //
 // Query params:
 //   - type: "local", "session", or "" (both)
 //   - key:  optional specific key to retrieve
 func (h *Handlers) handleStorageGet(w http.ResponseWriter, r *http.Request) {
+	if !h.stateExportEnabled() {
+		httpx.ErrorCode(w, 403, "state_export_disabled", httpx.DisabledEndpointMessage("stateExport", "security.allowStateExport"), false, map[string]any{
+			"setting": "security.allowStateExport",
+		})
+		return
+	}
 	tabID := r.URL.Query().Get("tabId")
 	storageType := r.URL.Query().Get("type")
 	key := r.URL.Query().Get("key")

@@ -345,9 +345,16 @@ func sanitizeFilename(name string) string {
 	return name
 }
 
-// ResolvePath returns the full path for a named state file.
+// ResolvePath returns the full canonical path for a named state file.
+// Returns an empty string if the resolved path attempts to escape stateDir.
 func ResolvePath(stateDir, name string) string {
 	dir := SessionsDir(stateDir)
 	filename := sanitizeFilename(name) + ".json"
-	return filepath.Join(dir, filename)
+	resolved := filepath.Clean(filepath.Join(dir, filename))
+	// Belt-and-suspenders: reject if the canonical path escapes the sessions dir.
+	cleanDir := filepath.Clean(dir) + string(os.PathSeparator)
+	if !strings.HasPrefix(resolved, cleanDir) {
+		return ""
+	}
+	return resolved
 }
