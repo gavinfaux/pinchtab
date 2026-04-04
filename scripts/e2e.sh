@@ -23,10 +23,13 @@ show_filter_status() {
 
 # Detect available docker compose command
 COMPOSE="docker compose"
-if ! command -v docker compose >/dev/null 2>&1; then
-  if command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE="docker-compose"
-  fi
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE="docker-compose"
+else
+  echo "Neither 'docker compose' nor 'docker-compose' is available" >&2
+  exit 127
 fi
 
 compose_down() {
